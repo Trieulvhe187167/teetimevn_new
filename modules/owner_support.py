@@ -184,6 +184,91 @@ def ensure_owner_schema(db) -> None:
         """
     )
 
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS course_update_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            course_id INTEGER NOT NULL,
+            owner_id INTEGER NOT NULL,
+            payload TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            reviewer_id INTEGER,
+            review_note TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(course_id) REFERENCES golf_course(id),
+            FOREIGN KEY(owner_id) REFERENCES users(id),
+            FOREIGN KEY(reviewer_id) REFERENCES users(id)
+        )
+        """
+    )
+    schema_updated = True
+    db.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_cur_course
+            ON course_update_requests(course_id)
+        """
+    )
+    db.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_cur_status
+            ON course_update_requests(status)
+        """
+    )
+
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS course_schedules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            course_id INTEGER NOT NULL,
+            start_datetime TIMESTAMP NOT NULL,
+            end_datetime TIMESTAMP NOT NULL,
+            type TEXT NOT NULL,
+            price_adjustment REAL,
+            capacity_override INTEGER,
+            note TEXT,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(course_id) REFERENCES golf_course(id)
+        )
+        """
+    )
+    schema_updated = True
+    db.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_cs_course_time
+            ON course_schedules(course_id, start_datetime, end_datetime)
+        """
+    )
+    db.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_cs_type
+            ON course_schedules(type)
+        """
+    )
+
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS review_responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            review_id INTEGER NOT NULL,
+            owner_id INTEGER NOT NULL,
+            response_text TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'published',
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(review_id) REFERENCES reviews(id),
+            FOREIGN KEY(owner_id) REFERENCES users(id)
+        )
+        """
+    )
+    schema_updated = True
+    db.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_rr_review
+            ON review_responses(review_id)
+        """
+    )
+
     columns = {
         row["name"] for row in db.execute("PRAGMA table_info(bookings)").fetchall()
     }

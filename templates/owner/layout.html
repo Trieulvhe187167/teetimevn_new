@@ -62,6 +62,10 @@
                class="list-group-item list-group-item-action {% if request.endpoint == 'owner.dashboard' %}active{% endif %}">
               <i class="bi bi-speedometer me-2"></i>{{ _('Dashboard') }}
             </a>
+            <a href="{{ url_for('owner.course_settings_index', lang=lang) }}"
+               class="list-group-item list-group-item-action {% if request.endpoint in ['owner.course_settings_index','owner.course_settings_detail'] %}active{% endif %}">
+              <i class="bi bi-gear me-2"></i>{{ _('Course settings') }}
+            </a>
             <a href="{{ url_for('owner.booking_list', lang=lang) }}"
                class="list-group-item list-group-item-action {% if request.endpoint in ['owner.booking_list','owner.booking_detail'] %}active{% endif %}">
               <i class="bi bi-list-check me-2"></i>{{ _('Bookings') }}
