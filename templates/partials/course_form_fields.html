@@ -1,0 +1,75 @@
+{% set ctx_course = course or {} %}
+{% set ctx_i18n = course_i18n or {} %}
+{% set form_values = form_data or request.form %}
+{% set show_slug = show_slug if show_slug is defined else True %}
+{% set owner_mode = owner_mode if owner_mode is defined else False %}
+
+{% if show_slug %}
+<div class="mb-3">
+  <label class="form-label">{{ _('Slug') }}</label>
+  <input name="slug" type="text" class="form-control" value="{{ form_values.slug or ctx_course.get('slug', '') }}" required>
+</div>
+{% endif %}
+<div class="row">
+  <div class="col-md-6 mb-3">
+    <label class="form-label">{{ _('Holes') }}</label>
+    <input name="holes" type="number" class="form-control" value="{{ form_values.holes or ctx_course.get('holes', '') }}">
+  </div>
+  <div class="col-md-6 mb-3">
+    <label class="form-label">{{ _('Par') }}</label>
+    <input name="par" type="number" class="form-control" value="{{ form_values.par or ctx_course.get('par', '') }}">
+  </div>
+</div>
+<div class="mb-3">
+  <label class="form-label">{{ _('Length (yards)') }}</label>
+  <input name="length_yards" type="number" class="form-control" value="{{ form_values.length_yards or ctx_course.get('length_yards', '') }}">
+</div>
+<div class="mb-3">
+  <label class="form-label">{{ _('Opened Year') }}</label>
+  <input name="opened_year" type="number" class="form-control" value="{{ form_values.opened_year or ctx_course.get('opened_year', '') }}">
+</div>
+<div class="row">
+  <div class="col-md-6 mb-3">
+    <label class="form-label">{{ _('Latitude') }}</label>
+    <input name="lat" type="text" class="form-control" value="{{ form_values.lat or ctx_course.get('lat', '') }}">
+  </div>
+  <div class="col-md-6 mb-3">
+    <label class="form-label">{{ _('Longitude') }}</label>
+    <input name="lng" type="text" class="form-control" value="{{ form_values.lng or ctx_course.get('lng', '') }}">
+  </div>
+</div>
+<div class="mb-3">
+  <label class="form-label">{{ _('Embed Code') }}</label>
+  <textarea name="maps_url" class="form-control" rows="4">{{ form_values.maps_url or ctx_course.get('maps_url', '') }}</textarea>
+  <div class="form-text">{{ _('Paste your embed HTML/JS code here.') }}</div>
+</div>
+<div class="mb-3">
+  <label class="form-label">{{ _('Scorecard PDF') }}</label>
+  <input name="scorecard_pdf" type="text" class="form-control" value="{{ form_values.scorecard_pdf or ctx_course.get('scorecard_pdf', '') }}">
+</div>
+{% if owner_mode %}
+<hr class="my-4">
+<div class="mb-3">
+  <label class="form-label">{{ _('Course Name') }}</label>
+  <input name="title" type="text" class="form-control" value="{{ form_values.title or ctx_i18n.get('name', '') }}">
+</div>
+<div class="mb-3">
+  <label class="form-label">{{ _('Address') }}</label>
+  <textarea name="address" class="form-control" rows="2">{{ form_values.address or ctx_i18n.get('address', '') }}</textarea>
+</div>
+<div class="mb-3">
+  <label class="form-label">{{ _('Description / Overview') }}</label>
+  <textarea name="description" class="form-control" rows="4">{{ form_values.description or ctx_i18n.get('overview', '') }}</textarea>
+</div>
+<div class="mb-3">
+  <label class="form-label">{{ _('Amenities (one per line)') }}</label>
+  {% set amenities = form_values.amenities or (ctx_i18n.get('amenities') if ctx_i18n else '') %}
+  <textarea name="amenities" class="form-control" rows="3" placeholder="Locker rooms\nRestaurant\nDriving range">{{ amenities }}</textarea>
+  <div class="form-text">{{ _('We will show these as bullet points on the public page.') }}</div>
+</div>
+<div class="mb-3">
+  <label class="form-label">{{ _('Gallery Images') }}</label>
+  <input type="file" name="images" class="form-control" multiple accept="image/*">
+  <div class="form-text">{{ _('Upload JPG/PNG files up to 5MB each.') }}</div>
+</div>
+{% endif %}

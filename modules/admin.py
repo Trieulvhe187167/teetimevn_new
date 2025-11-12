@@ -6,6 +6,82 @@ from werkzeug.security import generate_password_hash
 import sqlite3, os, re
 from datetime import datetime
 import json
+import shutil
+from pathlib import Path
+
+def _parse_request_payload(row):
+    try:
+        return json.loads(row["payload"] or "{}")
+    except (KeyError, TypeError, json.JSONDecodeError):
+        return {}
+
+
+def _move_pending_images_to_live(course_id: int, image_paths, static_folder: str):
+    if not image_paths:
+        return []
+
+    base_static = Path(static_folder)
+    live_dir = base_static / "uploads" / "courses" / str(course_id) / "live"
+    live_dir.mkdir(parents=True, exist_ok=True)
+
+    moved = []
+    for rel_path in image_paths:
+        if not rel_path:
+            continue
+        pending_path = base_static / rel_path
+        if not pending_path.exists():
+            continue
+        target = live_dir / pending_path.name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            if target.exists():
+                target.unlink()
+            shutil.move(str(pending_path), target)
+        except OSError:
+            continue
+        moved.append(
+            str(Path("uploads") / "courses" / str(course_id) / "live" / target.name).replace("\\", "/")
+        )
+    return moved
+
+
+def _apply_course_update_payload(db, course_id: int, payload: dict):
+    if not payload:
+        return
+
+    description = payload.get("description") or None
+    address = payload.get("address")
+
+    i18n_map = payload.get("i18n", {}) or {}
+    for lang_code, lang_payload in i18n_map.items():
+        lang_payload = lang_payload or {}
+        name = lang_payload.get("title") or lang_payload.get("name")
+        overview = lang_payload.get("description") or description
+        addr_value = lang_payload.get("address") or address
+        row = db.execute(
+            "SELECT id FROM golf_course_i18n WHERE course_id = ? AND lang = ?",
+            (course_id, lang_code),
+        ).fetchone()
+        if row:
+            db.execute(
+                """
+                UPDATE golf_course_i18n
+                SET name = COALESCE(?, name),
+                    address = COALESCE(?, address),
+                    overview = COALESCE(?, overview)
+                WHERE id = ?
+                """,
+                (name, addr_value, overview, row["id"]),
+            )
+        else:
+            db.execute(
+                """
+                INSERT INTO golf_course_i18n (course_id, lang, name, address, overview)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (course_id, lang_code, name, addr_value, overview),
+            )
+
 
 def create_admin_bp():
     bp = Blueprint('admin', __name__, url_prefix='/<lang>/admin')
@@ -402,6 +478,149 @@ def create_admin_bp():
         g.db.commit()
         flash(_('Course deleted'), 'success')
         return redirect(url_for('admin.course_list', lang=lang))
+
+    @bp.route('/courses/owner-submissions/')
+    def owner_submission_list(lang):
+        status_filter = (request.args.get('status') or 'pending').strip()
+        allowed_statuses = {'pending', 'approved', 'rejected', 'all'}
+        if status_filter not in allowed_statuses:
+            status_filter = 'pending'
+
+        query = [
+            """
+            SELECT r.*, gc.slug, gci.name AS course_name,
+                   u.fullname AS owner_name, u.email AS owner_email
+            FROM course_update_requests r
+            JOIN golf_course gc ON r.course_id = gc.id
+            LEFT JOIN golf_course_i18n gci
+                   ON gc.id = gci.course_id AND gci.lang = ?
+            JOIN users u ON r.owner_id = u.id
+            """,
+        ]
+        params = [lang]
+
+        if status_filter != 'all':
+            query.append("WHERE r.status = ?")
+            params.append(status_filter)
+
+        query.append("ORDER BY r.created_at DESC")
+
+        rows = g.db.execute("\n".join(query), params).fetchall()
+
+        return render_template(
+            'admin/owner_submission_list.html',
+            lang=lang,
+            rows=rows,
+            status_filter=status_filter,
+        )
+
+    @bp.route('/courses/owner-submissions/<int:request_id>/')
+    def owner_submission_detail(lang, request_id):
+        row = g.db.execute(
+            """
+            SELECT r.*, gc.slug, gci.name AS course_name,
+                   u.fullname AS owner_name, u.email AS owner_email
+            FROM course_update_requests r
+            JOIN golf_course gc ON r.course_id = gc.id
+            LEFT JOIN golf_course_i18n gci
+                   ON gc.id = gci.course_id AND gci.lang = ?
+            JOIN users u ON r.owner_id = u.id
+            WHERE r.id = ?
+            """,
+            (lang, request_id),
+        ).fetchone()
+
+        if not row:
+            flash(_('Submission not found'), 'warning')
+            return redirect(url_for('admin.owner_submission_list', lang=lang))
+
+        payload = _parse_request_payload(row)
+        live_snapshot = g.db.execute(
+            """
+            SELECT gc.*, gci.name, gci.address, gci.overview
+            FROM golf_course gc
+            LEFT JOIN golf_course_i18n gci
+                   ON gc.id = gci.course_id AND gci.lang = ?
+            WHERE gc.id = ?
+            """,
+            (lang, row['course_id']),
+        ).fetchone()
+
+        return render_template(
+            'admin/owner_submission_detail.html',
+            lang=lang,
+            submission=row,
+            payload=payload,
+            live_snapshot=live_snapshot,
+        )
+
+    @bp.route('/courses/owner-submissions/<int:request_id>/approve', methods=('POST',))
+    def owner_submission_approve(lang, request_id):
+        submission = g.db.execute(
+            "SELECT * FROM course_update_requests WHERE id = ?", (request_id,)
+        ).fetchone()
+        if not submission or submission['status'] != 'pending':
+            flash(_('Submission is no longer pending.'), 'warning')
+            return redirect(url_for('admin.owner_submission_list', lang=lang))
+
+        payload = _parse_request_payload(submission)
+        try:
+            _apply_course_update_payload(g.db, submission['course_id'], payload)
+            moved_images = _move_pending_images_to_live(
+                submission['course_id'], payload.get('images'), current_app.static_folder
+            )
+            if moved_images:
+                payload['images_live'] = moved_images
+
+            g.db.execute(
+                """
+                UPDATE course_update_requests
+                SET status = 'approved', reviewer_id = ?, review_note = ?,
+                    payload = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    session.get('user_id'),
+                    request.form.get('review_note'),
+                    json.dumps(payload),
+                    request_id,
+                ),
+            )
+            g.db.commit()
+            flash(_('Submission approved and applied.'), 'success')
+        except Exception as exc:
+            g.db.rollback()
+            current_app.logger.exception('Failed to approve submission %s: %s', request_id, exc)
+            flash(_('Unable to approve submission.'), 'danger')
+
+        return redirect(
+            url_for('admin.owner_submission_detail', lang=lang, request_id=request_id)
+        )
+
+    @bp.route('/courses/owner-submissions/<int:request_id>/reject', methods=('POST',))
+    def owner_submission_reject(lang, request_id):
+        submission = g.db.execute(
+            "SELECT * FROM course_update_requests WHERE id = ?", (request_id,)
+        ).fetchone()
+        if not submission or submission['status'] != 'pending':
+            flash(_('Submission is no longer pending.'), 'warning')
+            return redirect(url_for('admin.owner_submission_list', lang=lang))
+
+        review_note = request.form.get('review_note') or ''
+        g.db.execute(
+            """
+            UPDATE course_update_requests
+            SET status = 'rejected', reviewer_id = ?, review_note = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (session.get('user_id'), review_note, request_id),
+        )
+        g.db.commit()
+        flash(_('Submission rejected.'), 'info')
+        return redirect(
+            url_for('admin.owner_submission_detail', lang=lang, request_id=request_id)
+        )
 
     # -----------------------
     # Price routes

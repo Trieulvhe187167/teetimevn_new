@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Owner submissions') }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+    <div>
+      <h1 class="h3 mb-1">{{ _('Owner submissions') }}</h1>
+      <p class="text-muted mb-0">{{ _('Review and moderate content updates submitted by course owners.') }}</p>
+    </div>
+    <a href="{{ url_for('admin.dashboard', lang=lang) }}" class="btn btn-outline-secondary mt-3 mt-md-0">
+      <i class="bi bi-speedometer2 me-2"></i>{{ _('Back to dashboard') }}
+    </a>
+  </div>
+
+  <form class="row g-3 align-items-end mb-4" method="get">
+    <div class="col-sm-4 col-md-3">
+      <label class="form-label text-uppercase small fw-semibold text-muted">{{ _('Status') }}</label>
+      <select class="form-select" name="status">
+        {% for status in ['pending', 'approved', 'rejected', 'all'] %}
+          <option value="{{ status }}" {% if status_filter == status %}selected{% endif %}>{{ status|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-3 col-md-2 d-grid">
+      <button type="submit" class="btn btn-success">{{ _('Filter') }}</button>
+    </div>
+  </form>
+
+  <div class="card shadow-sm border-0">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">{{ _('Course') }}</th>
+            <th scope="col">{{ _('Owner') }}</th>
+            <th scope="col">{{ _('Status') }}</th>
+            <th scope="col">{{ _('Submitted at') }}</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if rows %}
+            {% for row in rows %}
+              <tr>
+                <td>{{ row.id }}</td>
+                <td>
+                  <div class="fw-semibold">{{ row.course_name or row.slug }}</div>
+                  <div class="text-muted small">ID {{ row.course_id }}</div>
+                </td>
+                <td>
+                  <div class="fw-semibold">{{ row.owner_name or _('Owner') ~ ' #' ~ row.owner_id }}</div>
+                  <div class="text-muted small">{{ row.owner_email }}</div>
+                </td>
+                <td>
+                  {% if row.status == 'pending' %}
+                    <span class="badge bg-warning text-dark">{{ _('Pending') }}</span>
+                  {% elif row.status == 'approved' %}
+                    <span class="badge bg-success">{{ _('Approved') }}</span>
+                  {% else %}
+                    <span class="badge bg-danger">{{ _('Rejected') }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ row.created_at }}</td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.owner_submission_detail', lang=lang, request_id=row.id) }}">
+                    <i class="bi bi-search me-1"></i>{{ _('Review') }}
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">{{ _('No submissions found for the selected filter.') }}</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
