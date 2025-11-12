@@ -1,0 +1,56 @@
+{% extends 'admin/dashboard.html' %}
+
+{% block title %}{{ _('FAQ Management') }} | Admin{% endblock %}
+
+{% block admin_content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>{{ _('FAQ Management') }}</h2>
+    <a href="{{ url_for('admin.faq_create', lang=lang) }}" class="btn btn-primary">
+      <i class="bi bi-plus-circle"></i> {{ _('Create FAQ') }}
+    </a>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <strong>{{ _('FAQs') }}</strong>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th style="width: 90px;">{{ _('Order') }}</th>
+              <th>{{ _('Question') }} ({{ lang }})</th>
+              <th style="width: 220px;">{{ _('Actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr>
+              <td>{{ r.sort_order }}</td>
+              <td>{{ r.question or r.slug }}</td>
+              <td>
+                <a href="{{ url_for('admin.faq_edit', lang=lang, faq_id=r.id) }}" class="btn btn-sm btn-warning">
+                  <i class="bi bi-pencil"></i> {{ _('Edit') }}
+                </a>
+                <form method="post" action="{{ url_for('admin.faq_delete', lang=lang, faq_id=r.id) }}" style="display:inline-block;"
+                      onsubmit="return confirm('{{ _('Are you sure you want to delete this item?') }}');">
+                  <button type="submit" class="btn btn-sm btn-danger">
+                    <i class="bi bi-trash"></i> {{ _('Delete') }}
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if not rows %}
+        <p class="text-center text-muted my-4">{{ _('No results found') }}</p>
+      {% endif %}
+    </div>
+  </div>
+  {% set endpoint = 'admin.faq_list' %}
+  {% set args = {} %}
+  {% include 'admin/_pagination.html' %}
+{% endblock %}

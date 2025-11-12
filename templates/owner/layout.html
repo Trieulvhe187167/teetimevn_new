@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% set banner = true %}
+
+{% block site_header %}{% endblock %}
+{% block site_nav %}{% endblock %}
+{% block site_footer %}{% endblock %}
+
+{% block content %}
+{% set owner_langs = [
+  ('vi', _('Tiếng Việt'), 'vn'),
+  ('zh-CN', _('简体中文'), 'cn'),
+  ('en', _('English'), 'us'),
+  ('ko', _('한국어'), 'kr'),
+  ('ja', _('日本語'), 'jp'),
+  ('zh-TW', _('繁體中文'), 'tw')
+] %}
+{% set current_lang = owner_langs | selectattr('0', 'equalto', lang) | list | first %}
+{% if not current_lang %}
+  {% set current_lang = owner_langs[0] %}
+{% endif %}
+
+<div class="owner-shell">
+  <div class="owner-topbar">
+    <div class="owner-brand">
+      <img src="{{ url_for('static', filename='image/Logo.png') }}" alt="TEEtimeVN" class="owner-logo">
+      <span class="owner-brand-text">TEEtimeVN Owner</span>
+    </div>
+    <div class="owner-actions">
+      <div class="dropdown me-2">
+        <button class="btn btn-light dropdown-toggle d-flex align-items-center owner-lang-btn"
+                type="button" id="ownerLangDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <img src="{{ url_for('static', filename='flags/' ~ current_lang[2] ~ '.svg') }}"
+               alt="{{ current_lang[1] }} flag" width="20" class="me-2">
+          <span>{{ current_lang[1] }}</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="ownerLangDropdown">
+          {% for code,label,flag in owner_langs %}
+          <li>
+            <a class="dropdown-item d-flex align-items-center {% if code == lang %}active{% endif %}"
+               href="{{ switch_lang(code) }}">
+              <img src="{{ url_for('static', filename='flags/' ~ flag ~ '.svg') }}"
+                   alt="{{ label }} flag" width="20" class="me-2">
+              <span>{{ label }}</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <a href="{{ url_for('auth.logout', lang=lang) }}" class="btn btn-outline-light owner-logout-btn">
+        <i class="bi bi-box-arrow-right me-2"></i>{{ _('Logout') }}
+      </a>
+    </div>
+  </div>
+
+  <div class="owner-body">
+    <nav class="owner-sidebar">
+      <div class="card shadow-sm border-0 owner-menu-card">
+        <div class="card-body">
+          <h6 class="text-uppercase text-muted fw-bold small mb-3">{{ _('Course Owner') }}</h6>
+          <div class="list-group list-group-flush owner-menu">
+            <a href="{{ url_for('owner.dashboard', lang=lang) }}"
+               class="list-group-item list-group-item-action {% if request.endpoint == 'owner.dashboard' %}active{% endif %}">
+              <i class="bi bi-speedometer me-2"></i>{{ _('Dashboard') }}
+            </a>
+            <a href="{{ url_for('owner.booking_list', lang=lang) }}"
+               class="list-group-item list-group-item-action {% if request.endpoint in ['owner.booking_list','owner.booking_detail'] %}active{% endif %}">
+              <i class="bi bi-list-check me-2"></i>{{ _('Bookings') }}
+            </a>
+            <a href="{{ url_for('owner.checkins', lang=lang) }}"
+               class="list-group-item list-group-item-action {% if request.endpoint == 'owner.checkins' %}active{% endif %}">
+              <i class="bi bi-person-check me-2"></i>{{ _('Check-in Board') }}
+            </a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="owner-main">
+      {% block owner_content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<style>
+.owner-shell {
+  background: #f4f7f6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  overflow-x: hidden;
+}
+.owner-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: clamp(1rem, 2vw, 1.5rem) clamp(1.5rem, 3vw, 3rem);
+  background: linear-gradient(135deg, #007a4d, #00492c);
+  color: #fff;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 73, 44, 0.3);
+  border-radius: 0;
+  width: 100%;
+}
+.owner-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.owner-logo {
+  max-height: 40px;
+}
+.owner-brand-text {
+  font-weight: 600;
+  font-size: 1.125rem;
+  letter-spacing: 0.02em;
+}
+.owner-actions {
+  display: flex;
+  align-items: center;
+}
+.owner-lang-btn {
+  min-width: 160px;
+}
+.owner-logout-btn {
+  border-color: rgba(255, 255, 255, 0.6);
+  color: #fff;
+}
+.owner-logout-btn:hover,
+.owner-logout-btn:focus {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.owner-body {
+  flex: 1;
+  padding: clamp(1.5rem, 3vw, 2.5rem) clamp(1.5rem, 3vw, 3rem) clamp(1rem, 2vw, 2rem);
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  width: 100%;
+}
+.owner-sidebar {
+  flex: 0 0 260px;
+  position: sticky;
+  top: 2rem;
+  align-self: flex-start;
+}
+.owner-menu-card {
+  border-radius: 1rem;
+}
+.owner-main {
+  flex: 1 1 auto;
+  width: 0;
+  min-height: calc(100vh - 96px);
+}
+.owner-menu .list-group-item {
+  border: 0;
+  border-radius: 0.6rem;
+  margin-bottom: 0.35rem;
+  background: transparent;
+  color: #2e3d49;
+  transition: all 0.2s ease;
+}
+.owner-menu .list-group-item:hover {
+  background: rgba(0, 153, 51, 0.08);
+  color: #1f7a3b;
+}
+.owner-menu .list-group-item.active {
+  background: linear-gradient(135deg, #00a86b, #005f3d);
+  color: #fff;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 95, 61, 0.3);
+}
+.owner-menu .list-group-item i {
+  font-size: 1rem;
+}
+@media (max-width: 767.98px) {
+  .owner-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .owner-actions {
+    width: 100%;
+    gap: 0.75rem;
+  }
+  .owner-actions .dropdown,
+  .owner-actions .owner-logout-btn {
+    width: 100%;
+  }
+  .owner-actions .owner-logout-btn {
+    text-align: center;
+  }
+  .owner-body {
+    padding: 1.5rem 1rem 2rem;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .owner-sidebar {
+    position: static;
+    width: 100%;
+    flex: 0 0 auto;
+  }
+  .owner-main {
+    width: 100%;
+  }
+}
+</style>
+{% endblock %}

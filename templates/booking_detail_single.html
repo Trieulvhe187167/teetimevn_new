@@ -1,0 +1,335 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}{{ _('Booking Detail') }} #{{ booking.id }} | TEEtimeVN{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card shadow">
+        <div class="card-header {% if booking.status == 'cancelled' %}bg-danger{% else %}bg-success{% endif %} text-white d-flex justify-content-between align-items-center">
+          {% set payment_status = (booking.payment_status or 'unpaid')|lower %}
+          {% if payment_status == 'paid' %}
+            {% set payment_badge_class = 'bg-success' %}
+            {% set payment_badge_label = _('Paid') %}
+          {% elif payment_status == 'partially_paid' %}
+            {% set payment_badge_class = 'bg-info text-dark' %}
+            {% set payment_badge_label = _('Deposit paid') %}
+          {% elif payment_status == 'failed' %}
+            {% set payment_badge_class = 'bg-danger' %}
+            {% set payment_badge_label = _('Payment failed') %}
+          {% else %}
+            {% set payment_badge_class = 'bg-warning text-dark' %}
+            {% set payment_badge_label = _('Payment pending') %}
+          {% endif %}
+          <h4 class="mb-0">{{ _('Booking Detail') }} #{{ booking.id }}</h4>
+          <span class="badge bg-light text-dark">{{ _(booking.status.title()) }}</span> <span class="badge {{ payment_badge_class }}">{{ payment_badge_label }}</span>
+        </div>
+
+        <div class="card-body">
+          {% if booking.status == 'cancelled' %}
+            <div class="alert alert-danger" role="alert">
+              <h5 class="alert-heading mb-2">{{ _('This booking has been cancelled.') }}</h5>
+              <p class="mb-1"><strong>{{ _('Cancelled at') }}:</strong> {{ booking.cancelled_at or _('Not recorded') }}</p>
+              <p class="mb-1"><strong>{{ _('Reason') }}:</strong> {{ booking.cancellation_reason or _('No reason provided') }}</p>
+              {% if booking.refund_amount %}
+                <p class="mb-1"><strong>{{ _('Refund Amount') }}:</strong> {{ "{:,.0f}".format(booking.refund_amount) }} VND</p>
+              {% elif booking.credit_amount %}
+                <p class="mb-1"><strong>{{ _('Credit Amount') }}:</strong> {{ "{:,.0f}".format(booking.credit_amount) }} VND</p>
+              {% endif %}
+              <p class="mb-0">{{ _('Contact support if you need further assistance.') }}</p>
+            </div>
+          {% else %}
+            <div class="alert alert-info d-flex align-items-center" role="alert">
+              <i class="bi bi-info-circle-fill me-3" style="font-size: 1.5rem;"></i>
+              <div>
+                <p class="mb-1">{{ _('You can cancel up to %(hours)s hours before tee time.', hours=booking.cancellation_window_hours) }}</p>
+                <p class="mb-0">{{ _('Need to change the tee time? Reschedule up to %(hours)s hours in advance.', hours=booking.reschedule_window_hours) }}</p>
+              </div>
+            </div>
+          {% endif %}
+
+          <!-- Golf Course Information -->
+          <h5 class="border-bottom pb-2 mb-3">
+            <i class="bi bi-geo-alt"></i> {{ _('Golf Course Information') }}
+          </h5>
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <p class="mb-2"><strong>{{ _('Course Name') }}:</strong> {{ booking.course_name }}</p>
+              <p class="mb-2"><strong>{{ _('Address') }}:</strong> {{ booking.address }}</p>
+              <p class="mb-2"><strong>{{ _('Designer') }}:</strong> {{ booking.designer_name }}</p>
+            </div>
+            <div class="col-md-6">
+              <p class="mb-2"><strong>{{ _('Par') }}:</strong> {{ booking.par }}</p>
+              <p class="mb-2"><strong>{{ _('Holes') }}:</strong> {{ booking.holes }}</p>
+              <p class="mb-2"><strong>{{ _('Length') }}:</strong> {{ booking.length_yards }} yards</p>
+            </div>
+          </div>
+
+          <!-- Booking Information -->
+          <h5 class="border-bottom pb-2 mb-3">
+            <i class="bi bi-calendar-check"></i> {{ _('Booking Information') }}
+          </h5>
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <p class="mb-2"><strong>{{ _('Play Date') }}:</strong> <span class="text-primary">{{ booking.play_date }}</span></p>
+              <p class="mb-2"><strong>{{ _('Tee Time') }}:</strong> <span class="text-primary">{{ booking.play_time }}</span></p>
+              <p class="mb-2"><strong>{{ _('Players') }}:</strong> <span class="badge bg-info">{{ booking.players }}</span></p>
+            </div>
+            <div class="col-md-6">
+              {% if booking.hours_until_play is not none and booking.status != 'cancelled' %}
+                <p class="mb-2"><strong>{{ _('Time remaining') }}:</strong> {{ "{:.1f}".format(booking.hours_until_play) }} {{ _('hours') }}</p>
+              {% endif %}
+              <p class="mb-2"><strong>{{ _('Booking Date') }}:</strong> {{ booking.created_at_display }}</p>
+            </div>
+          </div>
+
+          <!-- Services -->
+          <h5 class="border-bottom pb-2 mb-3">
+            <i class="bi bi-list-check"></i> {{ _('Services Included') }}
+          </h5>
+          <ul class="list-unstyled mb-4">
+            <li class="mb-2">
+              {% if booking.has_caddy %}
+                <i class="bi bi-check-circle-fill text-success"></i>
+              {% else %}
+                <i class="bi bi-x-circle text-muted"></i>
+              {% endif %}
+              {{ _('Caddy Service') }}
+            </li>
+            <li class="mb-2">
+              {% if booking.has_cart %}
+                <i class="bi bi-check-circle-fill text-success"></i>
+              {% else %}
+                <i class="bi bi-x-circle text-muted"></i>
+              {% endif %}
+              {{ _('Golf Cart') }}
+            </li>
+            <li class="mb-2">
+              {% if booking.has_rent_clubs %}
+                <i class="bi bi-check-circle-fill text-success"></i>
+              {% else %}
+                <i class="bi bi-x-circle text-muted"></i>
+              {% endif %}
+              {{ _('Golf Club Rental') }}
+            </li>
+          </ul>
+
+          <!-- Pricing Details -->
+          <h5 class="border-bottom pb-2 mb-3">
+            <i class="bi bi-receipt"></i> {{ _('Pricing Details') }}
+          </h5>
+          <div class="table-responsive mb-4">
+            <table class="table">
+              <tbody>
+                <tr>
+                  <td>{{ _('Green Fee') }}</td>
+                  <td class="text-end">{{ "{:,.0f}".format(booking.green_fee) }} VND</td>
+                </tr>
+                <tr>
+                  <td>{{ _('Services') }}</td>
+                  <td class="text-end">{{ "{:,.0f}".format(booking.services_fee) }} VND</td>
+                </tr>
+                <tr>
+                  <td>{{ _('Insurance') }}</td>
+                  <td class="text-end">{{ "{:,.0f}".format(booking.insurance_fee) }} VND</td>
+                </tr>
+                <tr class="table-success">
+                  <th>{{ _('Total Amount') }}</th>
+                  <th class="text-end">{{ "{:,.0f}".format(booking.total_amount) }} VND</th>
+                </tr>
+                {% if booking.deposit_amount %}
+                <tr>
+                  <td>{{ _('Deposit required (%(percent)s%%)', percent=booking.deposit_percent or 0) }}</td>
+                  <td class="text-end text-primary">{{ "{:,.0f}".format(booking.deposit_amount) }} VND</td>
+                </tr>
+                {% endif %}
+                {% if booking.paid_amount %}
+                <tr>
+                  <td>{{ _('Amount paid') }}</td>
+                  <td class="text-end text-success">{{ "{:,.0f}".format(booking.paid_amount) }} VND</td>
+                </tr>
+                {% endif %}
+                <tr>
+                  <td>{{ _('Balance due at course') }}</td>
+                  <td class="text-end {{ 'text-success' if (booking.balance_due or 0) == 0 else 'text-warning fw-semibold' }}">{{ "{:,.0f}".format(booking.balance_due or 0) }} VND</td>
+                </tr>
+              </tbody>
+            </table>
+          {% set payment_status = (booking.payment_status or 'unpaid')|lower %}
+          {% set payment_method = (booking.payment_method or 'pay_on_arrival') %}
+          {% set deposit_amount = booking.deposit_amount or 0 %}
+          {% set paid_amount = booking.paid_amount or 0 %}
+          {% set balance_amount = booking.balance_due or 0 %}
+          {% if payment_status == 'paid' %}
+            <div class="alert alert-success">
+              <i class="bi bi-check-circle-fill me-2"></i>
+              {{ _('Payment complete. See you at the course!') }}
+            </div>
+          {% elif payment_status == 'partially_paid' %}
+            <div class="alert alert-info">
+              <i class="bi bi-credit-card me-2"></i>
+              {{ _('We received your deposit of %(amount)s VND via VNPay. Please pay the remaining %(balance)s VND at the course reception.', amount="{:,.0f}".format(paid_amount), balance="{:,.0f}".format(balance_amount)) }}
+            </div>
+          {% elif payment_status == 'failed' %}
+            <div class="alert alert-danger">
+              <i class="bi bi-exclamation-octagon me-2"></i>
+              {{ _('The last VNPay payment attempt was not successful. Contact us if you need a new payment link.') }}
+            </div>
+          {% else %}
+            {% if payment_method == 'vnpay_deposit' %}
+              <div class="alert alert-warning">
+                <i class="bi bi-info-circle me-2"></i>
+                {{ _('Deposit is still pending. Complete the %(amount)s VND VNPay payment from your email or reach out to our team for support.', amount="{:,.0f}".format(deposit_amount or balance_amount or booking.total_amount)) }}
+              </div>
+            {% elif payment_method == 'bank_transfer' %}
+              <div class="alert alert-warning">
+                <i class="bi bi-bank me-2"></i>
+                {{ _('Deposit is pending. Transfer %(amount)s VND via bank transfer so we can confirm your booking.', amount="{:,.0f}".format(deposit_amount or balance_amount or booking.total_amount)) }}
+              </div>
+              {% if booking.payment_reference %}
+                <p class="small text-muted ms-1 mb-2"><i class="bi bi-hash"></i> {{ _('Transfer content:') }} <strong>{{ booking.payment_reference }}</strong></p>
+              {% endif %}
+              <a href="{{ url_for('booking.bank_transfer_instructions', lang=lang, booking_id=booking.id) }}" class="btn btn-outline-success btn-sm mt-2">
+                <i class="bi bi-qr-code"></i> {{ _('View bank transfer instructions') }}
+              </a>
+            {% else %}
+              <div class="alert alert-warning">
+                <i class="bi bi-cash-stack me-2"></i>
+                {{ _('Please prepare %(amount)s VND to settle at the course. Our staff will reconfirm availability before your tee time.', amount="{:,.0f}".format(balance_amount or booking.total_amount)) }}
+              </div>
+            {% endif %}
+          {% endif %}
+
+          <!-- Customer Information -->
+          <h5 class="border-bottom pb-2 mb-3">
+            <i class="bi bi-person"></i> {{ _('Customer Information') }}
+          </h5>
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <p class="mb-2"><strong>{{ _('Name') }}:</strong> {{ booking.fullname or booking.username }}</p>
+              <p class="mb-2"><strong>{{ _('Email') }}:</strong> {{ booking.email }}</p>
+            </div>
+            <div class="col-md-6">
+              <p class="mb-2"><strong>{{ _('Phone') }}:</strong> {{ booking.phone or _('Not provided') }}</p>
+              <p class="mb-2"><strong>{{ _('Username') }}:</strong> {{ booking.username }}</p>
+            </div>
+          </div>
+
+          {% if booking.notes %}
+            <h5 class="border-bottom pb-2 mb-3">
+              <i class="bi bi-chat-text"></i> {{ _('Notes') }}
+            </h5>
+            <p class="mb-4">{{ booking.notes }}</p>
+          {% endif %}
+        </div>
+
+        <div class="card-footer bg-light d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('booking.my_bookings', lang=lang) }}" class="btn btn-secondary">
+              <i class="bi bi-arrow-left"></i> {{ _('Back to My Bookings') }}
+            </a>
+            <a href="{{ url_for('courses.course_detail', lang=lang, slug=booking.slug) }}" class="btn btn-outline-success">
+              {{ _('View Course') }}
+            </a>
+          </div>
+          <div class="d-flex gap-2">
+            {% if booking.status != 'cancelled' %}
+              <button type="button" class="btn btn-outline-primary {% if not booking.can_reschedule %}disabled{% endif %}" data-bs-toggle="modal" data-bs-target="#rescheduleModal{{ booking.id }}" {% if not booking.can_reschedule %}disabled{% endif %}>
+                <i class="bi bi-arrow-repeat"></i> {{ _('Modify Booking') }}
+              </button>
+              <button type="button" class="btn btn-danger {% if not booking.can_cancel %}disabled{% endif %}" data-bs-toggle="modal" data-bs-target="#cancelModal{{ booking.id }}" {% if not booking.can_cancel %}disabled{% endif %}>
+                <i class="bi bi-x-circle"></i> {{ _('Cancel Booking') }}
+              </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mt-4 text-muted">
+        <p>{{ _('Need help? Contact us at') }} <a href="mailto:support@teetimevn.com">support@teetimevn.com</a> {{ _('or call') }} <a href="tel:+84901234567">+84 90 123 4567</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel Confirmation Modal -->
+<div class="modal fade" id="cancelModal{{ booking.id }}" tabindex="-1" aria-labelledby="cancelModalLabel{{ booking.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="cancelModalLabel{{ booking.id }}">
+          <i class="bi bi-exclamation-triangle"></i> {{ _('Cancel Booking Confirmation') }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{{ url_for('booking.cancel_booking', lang=lang, booking_id=booking.id) }}">
+        <div class="modal-body">
+          <p>{{ _('Are you sure you want to cancel this booking?') }}</p>
+          <div class="alert alert-warning">
+            <i class="bi bi-info-circle"></i>
+            <ul class="mb-0 mt-2">
+              <li>{{ _('Bookings cannot be cancelled less than %(hours)s hours before play time.', hours=booking.cancellation_window_hours) }}</li>
+              <li>{{ _('Refunds are automatic for paid bookings; otherwise we create a credit for you.') }}</li>
+            </ul>
+          </div>
+          <div class="bg-light p-3 rounded mb-3">
+            <h6>{{ _('Booking Details:') }}</h6>
+            <p class="mb-1"><strong>{{ _('Course:') }}</strong> {{ booking.course_name }}</p>
+            <p class="mb-1"><strong>{{ _('Date:') }}</strong> {{ booking.play_date }}</p>
+            <p class="mb-1"><strong>{{ _('Time:') }}</strong> {{ booking.play_time }}</p>
+            <p class="mb-0"><strong>{{ _('Total Amount:') }}</strong> {{ "{:,.0f}".format(booking.total_amount) }} VND</p>
+          </div>
+          <div class="mb-2">
+            <label for="cancelReason{{ booking.id }}" class="form-label">{{ _('Reason (optional)') }}</label>
+            <textarea id="cancelReason{{ booking.id }}" name="cancellation_reason" class="form-control" rows="3" placeholder="{{ _('Let us know why you need to cancel...') }}"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Keep Booking') }}</button>
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-x-circle"></i> {{ _('Yes, Cancel Booking') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Reschedule Modal -->
+<div class="modal fade" id="rescheduleModal{{ booking.id }}" tabindex="-1" aria-labelledby="rescheduleModalLabel{{ booking.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="rescheduleModalLabel{{ booking.id }}">
+          <i class="bi bi-arrow-repeat"></i> {{ _('Modify Booking') }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{{ url_for('booking.reschedule_booking', lang=lang, booking_id=booking.id) }}">
+        <div class="modal-body">
+          <p class="mb-3">{{ _('Choose a new tee time. We will confirm the change shortly.') }}</p>
+          <div class="mb-3">
+            <label for="newDate{{ booking.id }}" class="form-label">{{ _('New Play Date') }}</label>
+            <input type="date" id="newDate{{ booking.id }}" name="new_play_date" class="form-control" value="{{ booking.play_date }}" required>
+          </div>
+          <div class="mb-3">
+            <label for="newTime{{ booking.id }}" class="form-label">{{ _('New Tee Time') }}</label>
+            <input type="time" id="newTime{{ booking.id }}" name="new_play_time" class="form-control" value="{{ booking.play_time }}" required>
+          </div>
+          <div class="alert alert-light border">
+            <i class="bi bi-info-circle"></i>
+            {{ _('Modifications must be requested at least %(hours)s hours in advance.', hours=booking.reschedule_window_hours) }}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Back') }}</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle"></i> {{ _('Submit Change') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

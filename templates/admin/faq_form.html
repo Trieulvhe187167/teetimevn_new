@@ -1,0 +1,44 @@
+{% extends 'admin/dashboard.html' %}
+
+{% block title %}{{ row and _('Edit FAQ') or _('Create FAQ') }} | Admin{% endblock %}
+
+{% block admin_content %}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>{{ row and _('Edit FAQ') or _('Create FAQ') }}</h2>
+    <a href="{{ url_for('admin.faq_list', lang=lang) }}" class="btn btn-secondary">{{ _('Back') }}</a>
+  </div>
+
+  <form method="post" class="card">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">{{ _('Slug') }}</label>
+          <input type="text" name="slug" class="form-control" value="{{ row.slug if row else '' }}" placeholder="booking-process">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">{{ _('Sort Order') }}</label>
+          <input type="number" name="sort_order" class="form-control" value="{{ row.sort_order if row else 0 }}">
+        </div>
+      </div>
+
+      <hr>
+
+      <div class="mb-3">
+        <label class="form-label">{{ _('Question') }} ({{ lang }})</label>
+        <input type="text" name="question" class="form-control" value="{{ row.question if row else '' }}" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">{{ _('Answer') }} ({{ lang }})</label>
+        <textarea name="answer" class="form-control" rows="6" required>{{ row.answer if row else '' }}</textarea>
+        <div class="form-text">{{ _('HTML allowed') }}</div>
+      </div>
+    </div>
+    <div class="card-footer d-flex justify-content-between">
+      {% if row %}
+      <div></div>
+      {% endif %}
+      <button type="submit" class="btn btn-primary">{{ _('Save') }}</button>
+    </div>
+  </form>
+{% endblock %}
+

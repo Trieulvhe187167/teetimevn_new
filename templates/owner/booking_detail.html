@@ -1,0 +1,243 @@
+{% extends 'owner/layout.html' %}
+
+{% block owner_content %}
+<div class="mb-3">
+  <a href="{{ url_for('owner.booking_list', lang=lang) }}" class="text-decoration-none small text-success">
+    <i class="bi bi-arrow-left-short me-1"></i>{{ _('Back to list') }}
+  </a>
+</div>
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+  <div>
+    <h1 class="h4 fw-semibold mb-1">
+      {{ _('Booking #%(id)s', id=booking['id']) }} · {{ booking['course_name'] }}
+    </h1>
+    <p class="text-muted mb-0">
+      {{ _('Tee time') }}: {{ booking['play_date'] }} {{ booking['play_time'] }}
+      · {{ _('Players') }} {{ booking['players'] }}
+    </p>
+  </div>
+  <span class="badge rounded-pill bg-light text-capitalize border border-success mt-3 mt-md-0">
+    {{ booking['status'] }}
+  </span>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-0">
+        <h2 class="h6 mb-0 fw-semibold text-uppercase">{{ _('Booking summary') }}</h2>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <dl class="row small mb-0">
+              <dt class="col-5 text-muted">{{ _('Course') }}</dt>
+              <dd class="col-7">{{ booking['course_name'] }}</dd>
+
+              <dt class="col-5 text-muted">{{ _('Play date') }}</dt>
+              <dd class="col-7">{{ booking['play_date'] }}</dd>
+
+              <dt class="col-5 text-muted">{{ _('Tee time') }}</dt>
+              <dd class="col-7">{{ booking['play_time'] }}</dd>
+
+              <dt class="col-5 text-muted">{{ _('Players') }}</dt>
+              <dd class="col-7">{{ booking['players'] }}</dd>
+
+              <dt class="col-5 text-muted">{{ _('Services') }}</dt>
+              <dd class="col-7">
+                <ul class="list-unstyled mb-0">
+                  <li>
+                    <i class="bi {{ 'bi-check-circle text-success' if booking['has_caddy'] else 'bi-dash-lg text-muted' }} me-1"></i>
+                    {{ _('Caddy') }}
+                  </li>
+                  <li>
+                    <i class="bi {{ 'bi-check-circle text-success' if booking['has_cart'] else 'bi-dash-lg text-muted' }} me-1"></i>
+                    {{ _('Golf cart') }}
+                  </li>
+                  <li>
+                    <i class="bi {{ 'bi-check-circle text-success' if booking['has_rent_clubs'] else 'bi-dash-lg text-muted' }} me-1"></i>
+                    {{ _('Club rental') }}
+                  </li>
+                </ul>
+              </dd>
+            </dl>
+          </div>
+          <div class="col-md-6">
+            <dl class="row small mb-0">
+              <dt class="col-5 text-muted">{{ _('Payment status') }}</dt>
+              <dd class="col-7 text-capitalize">{{ booking['payment_status']|replace('_',' ') }}</dd>
+
+              <dt class="col-5 text-muted">{{ _('Total amount') }}</dt>
+              <dd class="col-7 fw-semibold">{{ '{:,.0f}'.format(booking['total_amount'] or 0) }} VND</dd>
+
+              <dt class="col-5 text-muted">{{ _('Paid amount') }}</dt>
+              <dd class="col-7">{{ '{:,.0f}'.format(booking['paid_amount'] or 0) }} VND</dd>
+
+              <dt class="col-5 text-muted">{{ _('Balance due') }}</dt>
+              <dd class="col-7 text-danger">{{ '{:,.0f}'.format(booking['balance_due'] or 0) }} VND</dd>
+
+              <dt class="col-5 text-muted">{{ _('Customer note') }}</dt>
+              <dd class="col-7">
+                {% if booking['notes'] %}
+                  {{ booking['notes'] }}
+                {% else %}
+                  <span class="text-muted">{{ _('No note provided.') }}</span>
+                {% endif %}
+              </dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-0">
+        <h2 class="h6 mb-0 fw-semibold text-uppercase">{{ _('Customer & contact') }}</h2>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <p class="mb-1 fw-semibold">{{ booking['fullname'] or booking['username'] }}</p>
+            <p class="mb-1 text-muted">{{ booking['email'] }}</p>
+            <p class="mb-0 text-muted">{{ booking['phone'] }}</p>
+          </div>
+          <div class="col-md-6">
+            <dl class="row small mb-0">
+              <dt class="col-5 text-muted">{{ _('Booked at') }}</dt>
+              <dd class="col-7">{{ booking['created_at'] }}</dd>
+              <dt class="col-5 text-muted">{{ _('Last update') }}</dt>
+              <dd class="col-7">{{ booking['updated_at'] }}</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0">
+        <h2 class="h6 mb-0 fw-semibold text-uppercase">{{ _('Reschedule booking') }}</h2>
+      </div>
+      <div class="card-body">
+        <form action="{{ url_for('owner.reschedule_booking', lang=lang, booking_id=booking['id']) }}" method="post" class="row g-3">
+          <div class="col-md-5">
+            <label for="new_play_date" class="form-label small text-uppercase text-muted">{{ _('New date') }}</label>
+            <input type="date" class="form-control" id="new_play_date" name="new_play_date" value="{{ booking['play_date'] }}">
+          </div>
+          <div class="col-md-4">
+            <label for="new_play_time" class="form-label small text-uppercase text-muted">{{ _('New tee time') }}</label>
+            <input type="time" class="form-control" id="new_play_time" name="new_play_time" value="{{ booking['play_time'] }}">
+          </div>
+          <div class="col-md-3 d-grid align-self-end">
+            <button type="submit" class="btn btn-outline-success">{{ _('Update tee-time') }}</button>
+          </div>
+        </form>
+        <p class="text-muted small mt-3 mb-0">{{ _('Pricing will be recalculated automatically when you reschedule.') }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-0">
+        <h2 class="h6 mb-0 fw-semibold text-uppercase">{{ _('Status control') }}</h2>
+      </div>
+      <div class="card-body">
+        <form action="{{ url_for('owner.update_status', lang=lang, booking_id=booking['id']) }}" method="post" class="mb-3">
+          <input type="hidden" name="action" value="confirm">
+          <div class="mb-2">
+            <label for="confirm-notes" class="form-label small text-uppercase text-muted">{{ _('Note (optional)') }}</label>
+            <textarea class="form-control" id="confirm-notes" name="notes" rows="2"
+                      placeholder="{{ _('Message to customer when confirming') }}"></textarea>
+          </div>
+          <button type="submit" class="btn btn-success w-100" {% if booking['status']=='confirmed' %}disabled{% endif %}>
+            <i class="bi bi-check-circle me-2"></i>{{ _('Confirm booking') }}
+          </button>
+        </form>
+
+        <form action="{{ url_for('owner.update_status', lang=lang, booking_id=booking['id']) }}" method="post">
+          <input type="hidden" name="action" value="cancel">
+          <div class="mb-2">
+            <label for="cancel-notes" class="form-label small text-uppercase text-muted">{{ _('Cancellation reason') }}</label>
+            <textarea class="form-control" id="cancel-notes" name="notes" rows="2"
+                      placeholder="{{ _('Explain why the booking is cancelled') }}"></textarea>
+          </div>
+          <button type="submit" class="btn btn-outline-danger w-100">
+            <i class="bi bi-x-circle me-2"></i>{{ _('Cancel booking') }}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white border-0">
+        <h2 class="h6 mb-0 fw-semibold text-uppercase">{{ _('Check-in & play status') }}</h2>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <p class="small text-muted mb-1">{{ _('Check-in status') }}</p>
+          {% if booking['no_show'] %}
+            <span class="badge bg-warning text-dark">{{ _('Marked as no-show') }}</span>
+          {% elif booking['check_out_at'] %}
+            <span class="badge bg-success-subtle text-success border border-success">{{ _('Checked-out at') }} {{ booking['check_out_at'] }}</span>
+          {% elif booking['check_in_at'] %}
+            <span class="badge bg-info-subtle text-info border border-info">{{ _('Checked-in at') }} {{ booking['check_in_at'] }}</span>
+          {% else %}
+            <span class="text-muted small">{{ _('Awaiting arrival') }}</span>
+          {% endif %}
+        </div>
+        <div class="d-grid gap-2">
+          <form action="{{ url_for('owner.mark_check_in', lang=lang, booking_id=booking['id']) }}" method="post">
+            <button type="submit" class="btn btn-outline-success"
+                    {% if booking['check_in_at'] or booking['no_show'] %}disabled{% endif %}>
+              {{ _('Mark check-in') }}
+            </button>
+          </form>
+          <form action="{{ url_for('owner.mark_check_out', lang=lang, booking_id=booking['id']) }}" method="post">
+            <button type="submit" class="btn btn-outline-primary"
+                    {% if not booking['check_in_at'] or booking['check_out_at'] or booking['no_show'] %}disabled{% endif %}>
+              {{ _('Mark check-out') }}
+            </button>
+          </form>
+          <form action="{{ url_for('owner.mark_no_show', lang=lang, booking_id=booking['id']) }}" method="post">
+            <div class="mb-2">
+              <input type="text" class="form-control form-control-sm"
+                     name="reason" placeholder="{{ _('Optional note for no-show') }}">
+            </div>
+            <button type="submit" class="btn btn-outline-warning w-100"
+                    {% if booking['no_show'] or booking['check_out_at'] %}disabled{% endif %}>
+              {{ _('Mark as no-show') }}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0">
+        <h2 class="h6 mb-0 fw-semibold text-uppercase">{{ _('Status history') }}</h2>
+      </div>
+      <div class="card-body">
+        {% if history %}
+          <ul class="list-group list-group-flush">
+            {% for event in history %}
+              <li class="list-group-item px-0">
+                <div class="fw-semibold text-success">{{ event['created_at'] }}</div>
+                <div class="small">
+                  {{ event['old_status']|capitalize }} → {{ event['new_status']|capitalize }}
+                </div>
+                {% if event['notes'] %}
+                  <div class="text-muted small">{{ event['notes'] }}</div>
+                {% endif %}
+                <div class="text-muted small fst-italic">{{ _('By %(user)s', user=event['changed_by'] or _('System')) }}</div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mb-0">{{ _('No history yet.') }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

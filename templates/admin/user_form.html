@@ -1,0 +1,78 @@
+﻿{% extends 'admin/dashboard.html' %}
+
+{% block title %}
+  {% if is_edit %}{{ _('Edit User') }}{% else %}{{ _('Create User') }}{% endif %} | Admin
+{% endblock %}
+
+{% block admin_content %}
+<div class="col-lg-8">
+  <h1 class="h3 mb-3">{% if is_edit %}{{ _('Edit User') }}{% else %}{{ _('Create User') }}{% endif %}</h1>
+  <form method="post" novalidate>
+    <div class="mb-3">
+      <label class="form-label" for="email">{{ _('Email') }}</label>
+      <input type="email" id="email" name="email" class="form-control" value="{{ user.get('email', '') }}" required maxlength="255">
+      {% if errors.email %}<div class="text-danger small">{{ errors.email }}</div>{% endif %}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" for="username">{{ _('Username') }}</label>
+      <input type="text" id="username" name="username" class="form-control" value="{{ user.get('username', '') }}" required minlength="3" maxlength="50">
+      <div class="form-text">{{ _('Use letters, numbers, periods, hyphens, or underscores.') }}</div>
+      {% if errors.username %}<div class="text-danger small">{{ errors.username }}</div>{% endif %}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" for="fullname">{{ _('Full name') }}</label>
+      <input type="text" id="fullname" name="fullname" class="form-control" value="{{ user.get('fullname', '') }}" maxlength="120">
+      {% if errors.fullname %}<div class="text-danger small">{{ errors.fullname }}</div>{% endif %}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" for="phone">{{ _('Phone') }}</label>
+      <input type="text" id="phone" name="phone" class="form-control" value="{{ user.get('phone', '') }}" maxlength="25">
+      <div class="form-text">{{ _('Digits, spaces, +, -, and parentheses are allowed.') }}</div>
+      {% if errors.phone %}<div class="text-danger small">{{ errors.phone }}</div>{% endif %}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" for="role">{{ _('Role') }}</label>
+      {% set current_role = (user.get('role') or 'user') %}
+      {% if current_role == 'admin' %}
+        <input type="hidden" name="role" value="admin">
+        <input type="text" class="form-control" value="{{ _('Admin') }}" readonly>
+        <div class="form-text">{{ _('Admin role cannot be modified here.') }}</div>
+      {% else %}
+        <select id="role" name="role" class="form-select" required>
+          <option value="user" {% if current_role == 'user' %}selected{% endif %}>{{ _('User') }}</option>
+          <option value="course_owner" {% if current_role == 'course_owner' %}selected{% endif %}>{{ _('Course owner') }}</option>
+        </select>
+        {% if errors.role %}<div class="text-danger small">{{ errors.role }}</div>{% endif %}
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" for="password">{{ _('Password') }}</label>
+      <input type="password" id="password" name="password" class="form-control" {% if not is_edit %}required{% endif %} minlength="8">
+      <div class="form-text">
+        {% if is_edit %}
+          {{ _('Leave blank to keep the current password.') }}
+        {% else %}
+          {{ _('Minimum 8 characters with letters and numbers.') }}
+        {% endif %}
+      </div>
+      {% if errors.password %}<div class="text-danger small">{{ errors.password }}</div>{% endif %}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" for="password_confirm">{{ _('Confirm password') }}</label>
+      <input type="password" id="password_confirm" name="password_confirm" class="form-control" {% if not is_edit %}required{% endif %} minlength="8">
+      {% if errors.password_confirm %}<div class="text-danger small">{{ errors.password_confirm }}</div>{% endif %}
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-success">{{ _('Save') }}</button>
+      <a href="{{ url_for('admin.user_list', lang=lang) }}" class="btn btn-secondary">{{ _('Cancel') }}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

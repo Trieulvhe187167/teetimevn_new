@@ -1,0 +1,92 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}{{ _('Bank Transfer Deposit') }} | TEEtimeVN{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-7">
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+          <h4 class="mb-0">{{ _('Bank Transfer Deposit') }}</h4>
+          <span class="badge bg-light text-success">{{ _('Booking #%(id)s', id=booking.id) }}</span>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-info d-flex align-items-start" role="alert">
+            <i class="bi bi-info-circle-fill me-3 mt-1"></i>
+            <div>
+              <p class="mb-1">{{ _('Please transfer the deposit within the next 30 minutes to secure your tee time.') }}</p>
+              <p class="mb-0">{{ _('Use the transfer content exactly as shown so we can auto-match your payment.') }}</p>
+            </div>
+          </div>
+
+          <div class="row g-4 align-items-center">
+            <div class="col-md-6">
+              <h5 class="text-success">{{ _('Deposit Amount') }}</h5>
+              <p class="display-6 fw-bold text-success mb-1">{{ "{:,.0f}".format(payment_details.deposit_amount) }} VND</p>
+              <p class="text-muted mb-3">{{ _('Total booking value: %(amount)s VND', amount="{:,.0f}".format(payment_details.total_amount)) }}</p>
+
+              <h6 class="text-uppercase text-muted fw-semibold">{{ _('Bank Information') }}</h6>
+              <ul class="list-unstyled mb-3">
+                <li><strong>{{ _('Bank') }}:</strong> {{ payment_details.bank_name }} ({{ payment_details.bank_code }})</li>
+                <li><strong>{{ _('Account number') }}:</strong> <span class="copyable" data-copy="{{ payment_details.account_number }}">{{ payment_details.account_number }}</span></li>
+                <li><strong>{{ _('Account holder') }}:</strong> {{ payment_details.account_name }}</li>
+              </ul>
+
+              <h6 class="text-uppercase text-muted fw-semibold">{{ _('Transfer content') }}</h6>
+              <div class="input-group mb-3">
+                <input type="text" class="form-control" value="{{ payment_details.transfer_content }}" readonly>
+                <button class="btn btn-outline-success copy-btn" type="button" data-copy="{{ payment_details.transfer_content }}">
+                  <i class="bi bi-clipboard-check"></i> {{ _('Copy') }}
+                </button>
+              </div>
+              <p class="small text-muted mb-0">{{ _('Do not add extra characters or emojis to the transfer content.') }}</p>
+            </div>
+            <div class="col-md-6 text-center">
+              {% if payment_details.qr_url %}
+                <div class="border rounded-3 p-3 mb-3 bg-light">
+                  <img src="{{ payment_details.qr_url }}" alt="{{ _('Bank transfer QR code') }}" class="img-fluid" style="max-height: 320px;">
+                </div>
+                <p class="text-muted small mb-0">{{ _('Scan this QR to fill in the bank details automatically.') }}</p>
+              {% else %}
+                <div class="alert alert-warning" role="alert">
+                  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                  {{ _('QR code is currently unavailable. Please enter the details manually.') }}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="card-footer bg-light d-flex flex-column flex-md-row gap-2 justify-content-between align-items-md-center">
+          <a href="{{ url_for('booking.booking_detail', lang=lang, booking_id=booking.id) }}" class="btn btn-outline-success">
+            <i class="bi bi-arrow-left"></i> {{ _('Back to booking detail') }}
+          </a>
+          <a href="{{ url_for('booking.my_bookings', lang=lang) }}" class="btn btn-success">
+            <i class="bi bi-calendar-check"></i> {{ _('View my bookings') }}
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.copy-btn, .copyable').forEach(element => {
+    element.addEventListener('click', async () => {
+      const value = element.dataset.copy || element.textContent.trim();
+      try {
+        await navigator.clipboard.writeText(value);
+        const original = element.innerHTML;
+        if (element.classList.contains('copy-btn')) {
+          element.innerHTML = '<i class="bi bi-check2"></i> {{ _('Copied') }}';
+          setTimeout(() => { element.innerHTML = original; }, 2000);
+        }
+      } catch (err) {
+        console.warn('Copy failed', err);
+      }
+    });
+  });
+</script>
+{% endblock %}

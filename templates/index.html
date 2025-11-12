@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ seo.title if seo else 'TEEtimeVN' }}{% endblock %}
+{% block meta_description %}
+  <meta name="description" content="{{ seo.description if seo else '' }}">
+{% endblock %}
+{% block meta_keywords %}
+  <meta name="keywords" content="{{ seo.keywords if seo else '' }}">
+  <meta name="google-site-verification" content="3oogfAcEz1HpTqJ4w13Dxe_op8VTsZhf7Q_wMg08QGU">
+{% endblock %}
+
+{% block content %}
+
+<div class="home-banner">
+  <img src="{{ url_for('static', filename='image/banner.png') }}" alt="TEEtimeVN Banner">
+</div>
+
+<div class="text-center py-3">
+  <h1 class="fw-bold text-success">{{ _('Welcome to TEEtimeVN') }}</h1>
+  <p class="fw-bold" style="color: #d4af37;">
+    {{ _("Explore Vietnam's top golf courses and book tee times in your language.") }}
+  </p>
+</div>
+
+
+
+<div class="container py-5" id="courses">
+  <h2 class="text-center mb-4" style="color:#0f5132; font-weight:700;">{{ _('Top-Rated Golf Courses') }}</h2>
+  <div class="row g-4">
+    {% for row in courses %}
+      {% set img_url = url_for('static', filename='media/' ~ row.slug ~ '.jpg') %}
+      <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card border-0 shadow h-100 rounded-4 overflow-hidden" style="background:#ffffff;">
+          <div class="position-relative ratio ratio-4x3">
+            <img src="{{ img_url }}" class="card-img-top" alt="{{ row.name }}"
+                 onerror="this.src='https://source.unsplash.com/featured/400x300?golf,{{ loop.index }}'"
+                 style="object-fit: cover;">
+            {% if row.avg_rating %}
+            <div class="position-absolute top-0 end-0 m-2 px-3 py-1 rounded-pill" style="background: rgba(20,93,60,.95); color:#d4af37; font-weight:600;">★ {{ row.avg_rating }} / 10</div>
+            {% endif %}
+          </div>
+          <div class="card-body p-3">
+            <h5 class="card-title mb-1" style="font-weight:700; color:#0f5132;">
+              <a href="{{ url_for('courses.course_detail', lang=lang, slug=row.slug) }}"
+                 class="stretched-link text-decoration-none" style="color:#0f5132;">
+                {{ row.name or row.slug }}
+              </a>
+            </h5>
+            {% if row.address %}
+              <p class="mb-0 small d-flex align-items-center" style="color:#146c43;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                     stroke="currentColor" class="me-1" style="width: 1rem; height: 1rem;">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                </svg>
+                <span>{{ row.address }}</span>
+              </p>
+            {% endif %}
+            {# {% if row.avg_rating %}
+              <p class="mb-0 small text-muted">⭐ {{ row.avg_rating }} / 10</p>
+            {% endif %} #}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="text-center mt-4">
+    <a href="{{ url_for('courses.course_list', lang=lang) }}" class="btn btn-success btn-lg px-4">
+      {{ _('View All Courses') }}
+    </a>
+  </div>
+</div>
+<style>
+  /* Fix badge sizing inside Bootstrap ratio */
+  .ratio > .position-absolute {
+    width: auto !important;
+    height: auto !important;
+    left: auto !important;
+    bottom: auto !important;
+    display: inline-block !important;
+  }
+  /* Optional: nicer badge */
+  .ratio > .position-absolute.rounded-pill {
+    background: rgba(20,93,60,.95) !important;
+    color: #d4af37 !important;
+    font-weight: 600 !important;
+    padding: .25rem .75rem !important;
+    border-radius: 50rem !important;
+  }
+  /* Service icons */
+  .services .card h5 { display: flex; align-items: center; gap: .5rem; }
+  .services .card h5::before {
+    content: "";
+    display: inline-block;
+    width: 28px; height: 28px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    filter: hue-rotate(0deg) saturate(100%);
+  }
+  /* 1) Tee Time Booking (clock) */
+  .services .row > div:nth-child(1) h5::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d4af37'><path d='M12 6.75a.75.75 0 0 1 .75.75v4.19l2.28 2.28a.75.75 0 1 1-1.06 1.06l-2.5-2.5A.75.75 0 0 1 11.25 12V7.5a.75.75 0 0 1 .75-.75Z'/><path fill-rule='evenodd' d='M3.75 6A2.25 2.25 0 0 1 6 3.75h12A2.25 2.25 0 0 1 20.25 6v12A2.25 2.25 0 0 1 18 20.25H6A2.25 2.25 0 0 1 3.75 18V6Zm2.25-.75A.75.75 0 0 0 5.25 6v12a.75.75 0 0 0 .75.75h12a.75.75 0 0 0 .75-.75V6a.75.75 0 0 0-.75-.75H6Z' clip-rule='evenodd'/></svg>");
+  }
+  /* 2) Private Transfers (car) */
+  .services .row > div:nth-child(2) h5::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d4af37'><path d='M3 13.5A2.25 2.25 0 0 1 5.25 11.25h13.5A2.25 2.25 0 0 1 21 13.5v3a1.5 1.5 0 0 1-1.5 1.5H18a.75.75 0 0 1-.75-.75V15H6.75v2.25A.75.75 0 0 1 6 18H4.5A1.5 1.5 0 0 1 3 16.5v-3Z'/><path d='M6 10.5h12l-1.2-2.4a2.25 2.25 0 0 0-2.02-1.35H9.22A2.25 2.25 0 0 0 7.2 8.1L6 10.5Z'/></svg>");
+  }
+  /* 3) Club & Caddy (golf club) */
+  .services .row > div:nth-child(3) h5::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d4af37'><path d='M8.25 4.5a1.5 1.5 0 0 1 1.06.44l4.5 4.5a1.5 1.5 0 0 1 0 2.12l-1.06 1.06-5.56-5.56L9.31 4.94A1.5 1.5 0 0 1 8.25 4.5Z'/><path d='M6.75 10.5 12 15.75V21h-1.5v-3H7.5v3H6v-5.25l.75-.75V10.5Z'/></svg>");
+  }
+  /* 4) Lessons & Coaching (academy shield) */
+  .services .row > div:nth-child(4) h5::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23d4af37'><path d='M12 3 3 7.5l9 4.5 9-4.5L12 3Z'/><path d='M6 12v4.5l6 3 6-3V12l-6 3-6-3Z'/></svg>");
+  }
+  .rounded-4 { border-radius: 1rem !important; }
+</style>
+<div class="container py-5 services">
+  <h2 class="text-center mb-4" style="color:#0f5132; font-weight:700;">{{ _('Premium Services') }}</h2>
+  <p class="text-center mb-5" style="color:#495057;">{{ _('Enjoy curated services for a seamless golf experience in Vietnam.') }}</p>
+  <div class="row g-4">
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="h-100 p-4 rounded-4 shadow" style="background:linear-gradient(180deg,#ffffff, #f8f9fa); border:1px solid #eef2ef;">
+        <div class="mb-3" style="color:#d4af37; font-size:1.75rem;">🕘</div>
+        <h5 class="mb-2" style="color:#0f5132; font-weight:700;">{{ _('Tee Time Booking') }}</h5>
+        <p class="mb-0" style="color:#495057;">{{ _('Fast, multilingual booking with instant confirmation.') }}</p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="h-100 p-4 rounded-4 shadow" style="background:linear-gradient(180deg,#ffffff, #f8f9fa); border:1px solid #eef2ef;">
+        <div class="mb-3" style="color:#d4af37; font-size:1.75rem;">🚗</div>
+        <h5 class="mb-2" style="color:#0f5132; font-weight:700;">{{ _('Private Transfers') }}</h5>
+        <p class="mb-0" style="color:#495057;">{{ _('Door-to-door luxury car service to courses.') }}</p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="h-100 p-4 rounded-4 shadow" style="background:linear-gradient(180deg,#ffffff, #f8f9fa); border:1px solid #eef2ef;">
+        <div class="mb-3" style="color:#d4af37; font-size:1.75rem;">🏌️</div>
+        <h5 class="mb-2" style="color:#0f5132; font-weight:700;">{{ _('Club & Caddy') }}</h5>
+        <p class="mb-0" style="color:#495057;">{{ _('Quality rental clubs and professional caddies.') }}</p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="h-100 p-4 rounded-4 shadow" style="background:linear-gradient(180deg,#ffffff, #f8f9fa); border:1px solid #eef2ef;">
+        <div class="mb-3" style="color:#d4af37; font-size:1.75rem;">🎓</div>
+        <h5 class="mb-2" style="color:#0f5132; font-weight:700;">{{ _('Lessons & Coaching') }}</h5>
+        <p class="mb-0" style="color:#495057;">{{ _('Certified pros for beginners to low handicaps.') }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

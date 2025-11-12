@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>{% block title %}TEEtimeVN{% endblock %}</title>
+  <link rel="canonical" href="{{ request.url }}">
+
+  {# --- SEO Meta Tags --- #}
+  {% if seo and seo.description %}
+    <meta name="description" content="{{ seo.description }}">
+  {% else %}
+    <meta name="description" content="TEEtimeVN là nền tảng đặt sân golf hàng đầu Việt Nam. Hỗ trợ đa ngôn ngữ, đặt giờ chơi dễ dàng.">
+  {% endif %}
+
+  {% if seo and seo.keywords %}
+    <meta name="keywords" content="{{ seo.keywords }}">
+  {% else %}
+    <meta name="keywords" content="golf vietnam, đặt sân golf, tee time, chơi golf việt nam, booking golf">
+  {% endif %}
+
+  {# --- Open Graph Tags (Facebook, Zalo) --- #}
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ seo.title if seo else 'TEEtimeVN' }}">
+  <meta property="og:description" content="{{ seo.description if seo else 'Đặt sân golf Việt Nam dễ dàng, hỗ trợ đa ngôn ngữ.' }}">
+  <meta property="og:url" content="{{ request.url }}">
+  <meta property="og:image" content="{{ url_for('static', filename='image/og-default.jpg', _external=True) }}">
+
+  {# --- Twitter Card Tags --- #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ seo.title if seo else 'TEEtimeVN' }}">
+  <meta name="twitter:description" content="{{ seo.description if seo else 'Đặt sân golf Việt Nam dễ dàng, hỗ trợ đa ngôn ngữ.' }}">
+  <meta name="twitter:image" content="{{ url_for('static', filename='image/og-default.jpg', _external=True) }}">
+
+  {# --- CSS & Icon --- #}
+  <link href="https://unpkg.com/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+  {# --- (Tuỳ chọn) Favicon --- #}
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='image/favicon.png') }}">
+  
+  {% block head %}{% endblock %}
+</head>
+
+<body class="d-flex flex-column min-vh-100">
+  <!-- ============================================================
+       (1) Script ẩn chứa toàn bộ flash messages do server gửi xuống
+       ============================================================ -->
+  <script id="loginFlashData" type="application/json">
+    {{ get_flashed_messages(with_categories=true) | tojson }}
+  </script>
+
+  <!-- ============================================================
+       (2) Header (sticky nếu bạn muốn) + User/Login/Register/Language
+       ============================================================ -->
+  {% block site_header %}
+  <header class="bg-white shadow-sm">
+    <div class="container d-flex justify-content-between align-items-center py-3">
+      <a href="{{ url_for('index', lang=lang) }}" class="navbar-brand p-0">
+        <img src="{{ url_for('static', filename='image/Logo.png') }}" alt="TEEtimeVN Logo">
+      </a>
+      <div class="d-flex align-items-center">
+        <span class="text-secondary me-2">{{ _('Language') }}</span>
+        <div class="dropdown me-3">
+          {% set langs = [
+            ('vi', _('Tiếng Việt'), 'vn'),
+            ('zh-CN', _('中文'), 'cn'),
+            ('en', _('English'), 'us'),
+            ('ko', _('한국어'), 'kr'),
+            ('ja', _('日本語'), 'jp'),
+            ('zh-TW', _('繁體'), 'tw')
+          ] %}
+          {% set current = langs | selectattr('0','equalto',lang) | list | first %}
+          <button class="btn btn-light dropdown-toggle d-flex align-items-center"
+                  type="button" id="langDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <img src="{{ url_for('static', filename='flags/' ~ current[2] ~ '.svg') }}"
+                 alt="{{ current[1] }} flag" width="20" class="me-2">
+            <span>{{ current[1] }}</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="langDropdown">
+            {% for code,label,flag in langs %}
+            <li>
+              <a class="dropdown-item d-flex align-items-center {% if code==lang %}active{% endif %}"
+                 href="{{ switch_lang(code) }}">
+                <img src="{{ url_for('static', filename='flags/' ~ flag ~ '.svg') }}"
+                     alt="{{ label }} flag" width="20" class="me-2">
+                <span>{{ label }}</span>
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        {% if session.get('user_id') %}
+          <!-- Nếu đã đăng nhập: Hiển thị dropdown user -->
+          <div class="dropdown">
+            <button class="btn btn-light dropdown-toggle d-flex align-items-center" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person-circle me-1"></i> {{ session.get('username') }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+              <li>
+                <a class="dropdown-item d-flex align-items-center" href="{{ url_for('index', lang=lang) }}">
+                  <i class="bi bi-house-door size-6"></i>
+                  {{ _('Home') }}
+                </a>
+              </li>
+              {% if session.get('role') != 'admin' %}
+              <li>
+                <a class="dropdown-item d-flex align-items-center" href="{{ url_for('booking.my_bookings', lang=lang) }}">
+                  <i class="bi bi-calendar-check size-6"></i>
+                  {{ _('My Bookings') }}
+                </a>
+              </li>
+              {% endif %}
+              {% if session.get('role') == 'admin' %}
+              <li>
+                <a class="dropdown-item d-flex align-items-center" href="{{ url_for('admin.dashboard', lang=lang) }}">
+                  <i class="bi bi-speedometer2 size-6"></i>
+                  {{ _('Admin Dashboard') }}
+                </a>
+              </li>
+              {% endif %}
+              {% if session.get('role') == 'course_owner' %}
+              <li>
+                <a class="dropdown-item d-flex align-items-center" href="{{ url_for('owner.dashboard', lang=lang) }}">
+                  <i class="bi bi-speedometer size-6"></i>
+                  {{ _('Owner Dashboard') }}
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item d-flex align-items-center" href="{{ url_for('owner.booking_list', lang=lang) }}">
+                  <i class="bi bi-list-check size-6"></i>
+                  {{ _('Manage Bookings') }}
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item d-flex align-items-center" href="{{ url_for('owner.checkins', lang=lang) }}">
+                  <i class="bi bi-person-check size-6"></i>
+                  {{ _('Check-in Board') }}
+                </a>
+              </li>
+              {% endif %}
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item d-flex align-items-center" href="{{ url_for('auth.logout', lang=lang) }}">
+                  <svg xmlns="http://www.w3.org/2000/svg"
+                       fill="none"
+                       viewBox="0 0 24 24"
+                       stroke-width="1.5"
+                       stroke="currentColor"
+                       class="size-6">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6
+                             a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 
+                             2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 
+                             2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                  </svg>
+                  {{ _('Logout') }}
+                </a>
+              </li>
+            </ul>
+          </div>
+        {% else %}
+          <!-- Nếu chưa đăng nhập: Hiển thị nút Login + Register (trigger modal) -->
+          <button type="button" class="btn btn-outline-primary me-2"
+                  data-bs-toggle="modal" data-bs-target="#loginModal">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 fill="none"
+                 viewBox="0 0 24 24"
+                 stroke-width="1.5"
+                 stroke="currentColor"
+                 class="size-6">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6
+                       a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 
+                       2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1
+                       -2.25-2.25V15M12 9l3 3m0 0-3 3m3-3H2.25" />
+            </svg>
+            {{ _('Login') }}
+          </button>
+          <button type="button" class="btn btn-register"
+                  data-bs-toggle="modal" data-bs-target="#registerModal">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 fill="none"
+                 viewBox="0 0 24 24"
+                 stroke-width="1.5"
+                 stroke="currentColor"
+                 class="size-6">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="m16.862 4.487 1.687-1.688a1.875
+                       1.875 0 1 1 2.652 2.652L10.582 16.07
+                       a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685
+                       a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0
+                       0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1
+                       15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25
+                       A2.25 2.25 0 0 1 5.25 6H10" />
+            </svg>
+            {{ _('Register') }}
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+  {% endblock %}
+
+  <!-- ============================================================
+       (3) Flash "Logged in successfully!" hiển thị dưới header
+       Chỉ chọn những message không thuộc category "login-error"
+       ============================================================ -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="container px-0">
+        <div class="row">
+          <div class="col-12 d-flex justify-content-end px-0">
+            {% for category, message in messages %}
+              {% if category != 'login-error' %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show compact-flash" role="alert">
+                  {{ message }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- ============================================================
+       (4) Navigation Bar (dưới flash hoặc header)
+       ============================================================ -->
+  {% block site_nav %}
+  <nav class="navbar navbar-expand-lg navbar-dark main-nav" style="background: var(--bs-primary);">
+    <div class="container">
+      <!-- Toggler for small screens -->
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse justify-content-center" id="mainNavbar">
+      <ul class="navbar-nav mx-auto justify-content-center mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}"
+             href="{{ url_for('index', lang=lang) }}">{{ _('Home') }}</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint and request.endpoint.startswith('courses.') %}active{% endif %}"
+             href="{{ url_for('courses.course_list', lang=lang) }}">{{ _('Courses') }}</a>
+        </li>
+        <li class="nav-item">
+         <a class="nav-link {% if request.endpoint and request.endpoint.startswith('booking.') %}active{% endif %}"
+             href="{{ url_for('booking.booking', lang=lang) }}">{{ _('Booking') }}</a>
+        </li>
+        <li class="nav-item">  
+          <a class="nav-link {% if request.endpoint and request.endpoint.startswith('faq.') %}active{% endif %}" 
+              href="{{ url_for('faq.faq_page', lang=lang) }}">{{ _('FAQ') }}</a>
+         
+        </li>
+      </ul>
+      </div>
+    </div>
+  </nav>
+  {% endblock %}
+
+  <!-- ============================================================
+       (5) Modal Login
+       ============================================================ -->
+  <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="loginModalLabel">{{ _('Login to Your Account') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
+        </div>
+        <div class="modal-body d-flex flex-column align-items-center">
+          <!-- (5a) Container để đổ flash "login-error" (nếu có) -->
+          <div id="loginFlashContainer" style="width:100%;"></div>
+
+          <!-- (5b) Biểu mẫu login -->
+          {% include 'auth/_login_form.html' %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       (6) Modal Register
+       ============================================================ -->
+  <div class="modal fade" id="registerModal" tabindex="-1" aria-labelledby="registerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="registerModalLabel">{{ _('Create a New Account') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
+        </div>
+       <div class="modal-body d-flex justify-content-center" id="registerFormContainer">
+  {% include 'auth/_register_form.html' %}
+</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       (7) Modal Forgot Password
+       ============================================================ -->
+  <div class="modal fade" id="forgotPasswordModal" tabindex="-1" aria-labelledby="forgotPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="forgotPasswordModalLabel">{{ _('Forgot Password') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
+        </div>
+        <div class="modal-body d-flex justify-content-center">
+          {% include 'auth/_forgot_password_form.html' %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       (8) Nội dung chính
+       ============================================================ -->
+  <main class="{% if banner %}p-0{% else %}container py-5{% endif %} flex-grow-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ============================================================
+       (9) Footer
+       ============================================================ -->
+  {% block site_footer %}
+  <footer class="site-footer mt-auto">
+    <style>
+      .site-footer{background:linear-gradient(180deg,#153f2c,#0f2e21);color:#e9f5ee;font-size:0}
+      .site-footer *{font-size:1rem}
+      .site-footer .footer-title{font-size:1.25rem;font-weight:700;color:#d4af37}
+      .site-footer a{color:#d4af37;text-decoration:none}
+      .site-footer a:hover{opacity:.9;text-decoration:underline}
+      .site-footer .muted{color:#b9d0c4}
+      .site-footer .icon{width:1.25rem;height:1.25rem;margin-right:.5rem;color:#97c3b1}
+      .site-footer .social a{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:#123424;color:#d4af37;margin-right:.5rem}
+      .site-footer .social a:hover{background:#0e2a1f}
+      .site-footer .bottom{border-top:1px solid rgba(255,255,255,.08)}
+      .site-footer .brand img{max-height:38px}
+    </style>
+    <div class="container py-5">
+      <div class="row g-4">
+        <div class="col-12 col-lg-5">
+          <div class="brand d-flex align-items-center mb-3">
+            <img src="{{ url_for('static', filename='image/Logo.png') }}" alt="TEEtimeVN">
+          </div>
+          <p class="mb-3 muted">{{ _('Vietnam’s curated tee time booking — stylish, simple, multilingual.') }}</p>
+          <a href="{{ url_for('courses.course_list', lang=lang) }}">{{ _('Explore Courses') }}</a>
+        </div>
+
+        <div class="col-12 col-lg-4">
+          <div class="footer-title mb-3">{{ _('Contact') }}</div>
+          <ul class="list-unstyled mb-0"> 
+            <li class="mb-2 d-flex align-items-start"><i class="bi bi-geo-alt icon"></i><span>Quang Ninh, Viet Nam</span></li>
+            <li class="mb-2 d-flex align-items-start"><i class="bi bi-telephone icon"></i><span>+84 888 888 888</span></li>
+            <li class="mb-2 d-flex align-items-start"><i class="bi bi-envelope icon"></i><span>support@teetimevn.com</span></li>
+            <li class="mb-2 d-flex align-items-start"><i class="bi bi-clock icon"></i><span>{{ _('Mon–Sun') }}: 08:00 – 20:00</span></li>
+          </ul>
+        </div>
+
+        <div class="col-12 col-lg-3">
+          <div class="footer-title mb-3">{{ _('Follow us') }}</div>
+          <div class="social mb-3">
+            <a aria-label="Facebook" href="#"><i class="bi bi-facebook"></i></a>
+            <a aria-label="Twitter" href="#"><i class="bi bi-twitter"></i></a>
+            <a aria-label="Instagram" href="#"><i class="bi bi-instagram"></i></a>
+            <a aria-label="YouTube" href="#"><i class="bi bi-youtube"></i></a>
+          </div>
+          <div class="muted small">{{ _('Get the latest tee time deals and course news.') }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom py-3">
+      <div class="container small d-flex flex-column flex-md-row justify-content-between align-items-center">
+        <div>© 2025 TEEtimeVN — {{ _('All rights reserved') }}</div>
+        <div class="mt-2 mt-md-0">
+          <a class="me-3" href="{{ url_for('faq.faq_page', lang=lang) }}">{{ _('FAQ') }}</a>
+          <a class="me-3" href="#">{{ _('Privacy') }}</a>
+          <a href="#">{{ _('Terms') }}</a>
+        </div>
+      </div>
+    </div>
+    © 2025 TEEtimeVN. {{ _('All rights reserved') }}
+  </footer>
+  {% endblock %}
+
+  <!-- JS: Bootstrap Bundle (gồm Popper) -->
+  <script src="https://unpkg.com/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // ------------------------------------------------------------
+      // (A) Xử lý show/hide mật khẩu (nếu bạn dùng icon con mắt)
+      // ------------------------------------------------------------
+      const toggles = document.querySelectorAll('.toggle-password-svg');
+      toggles.forEach(function(toggle) {
+        toggle.addEventListener('click', function() {
+          const inputId = this.getAttribute('data-target');
+          const input = document.getElementById(inputId);
+          if (input) {
+            if (input.type === 'password') {
+              input.type = 'text';
+              this.classList.add('visible');
+            } else {
+              input.type = 'password';
+              this.classList.remove('visible');
+            }
+          }
+        });
+      });
+
+      // ------------------------------------------------------------
+      // (B) Lấy flashData do server đổ xuống (mảng [ [category, message], ... ])
+      // ------------------------------------------------------------
+      const flashDataElement = document.getElementById('loginFlashData');
+      let flashData = [];
+      if (flashDataElement) {
+        try {
+          flashData = JSON.parse(flashDataElement.textContent || '[]');
+        } catch (e) {
+          flashData = [];
+        }
+      }
+
+      // ------------------------------------------------------------
+      // (C) Tách riêng:
+      //     - Những flash thuộc category != "login-error" sẽ hiển thị ngoài header (đã xử lý ở phần Jinja)
+      //     - Những flash category === "login-error" => hiển thị trong modal
+      // ------------------------------------------------------------
+      // (C1) Xử lý login-error (cho modal Login)
+      const loginErrors = flashData.filter(item => item[0] === 'login-error');
+      if (loginErrors.length > 0) {
+        const container = document.getElementById('loginFlashContainer');
+        loginErrors.forEach(([category, message]) => {
+          // category === "login-error", nên dùng alert-danger
+          const wrapper = document.createElement('div');
+          wrapper.className = `alert alert-danger alert-dismissible fade show`;
+          wrapper.setAttribute('role', 'alert');
+          wrapper.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          `;
+          container.appendChild(wrapper);
+        });
+
+        // Tự động mở modal Login
+        const loginModalEl = document.getElementById('loginModal');
+        const loginModal = new bootstrap.Modal(loginModalEl);
+        loginModal.show();
+      }
+
+      // ------------------------------------------------------------
+      // (D) Kiểm tra nếu cần mở modal login từ booking
+      // ------------------------------------------------------------
+      // Kiểm tra flash message yêu cầu login cho booking
+      const needLoginForBooking = flashData.some(item => 
+        item[1] && (
+          item[1].includes('Please login to book') || 
+          item[1].includes('Vui lòng đăng nhập để đặt sân') ||
+          item[1].includes('login to book')
+        )
+      );
+      
+      // Nếu có yêu cầu login cho booking và chưa có login error
+      if (needLoginForBooking && loginErrors.length === 0) {
+        // Mở modal login sau khi DOM ready
+        setTimeout(() => {
+          const loginModalEl = document.getElementById('loginModal');
+          if (loginModalEl) {
+            const loginModal = new bootstrap.Modal(loginModalEl);
+            loginModal.show();
+            
+            // Lưu booking page URL để redirect sau login
+            {% if request.endpoint == 'booking.booking' %}
+              sessionStorage.setItem('booking_redirect', '{{ url_for("booking.booking", lang=lang) }}');
+            {% endif %}
+          }
+        }, 200);
+      }
+
+      // ------------------------------------------------------------
+      // (E) Xử lý redirect sau login thành công
+      // ------------------------------------------------------------
+      // Kiểm tra nếu vừa login thành công
+      const loginSuccess = flashData.some(item => item[0] === 'login-success');
+      
+      if (loginSuccess) {
+        // Kiểm tra nếu có booking redirect trong sessionStorage
+        const bookingRedirect = sessionStorage.getItem('booking_redirect');
+        if (bookingRedirect) {
+          sessionStorage.removeItem('booking_redirect');
+          window.location.href = bookingRedirect;
+          return;
+        }
+      }
+      
+      {% if session.get('next_url') %}
+        // Nếu có next_url trong session, redirect về đó
+        window.location.href = "{{ session.pop('next_url') }}";
+      {% endif %}
+
+    });
+  </script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const regContainer = document.getElementById('registerFormContainer');
+  if (!regContainer) return;
+
+  regContainer.addEventListener('submit', async function (e) {
+    const form = e.target;
+    if (form.id !== 'registerForm') return;
+    e.preventDefault();
+
+    // chặn submit nếu vi phạm HTML5 pattern/minlength
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    const action = form.getAttribute('action') || form.action;
+    const formData = new FormData(form);
+
+    try {
+      const resp = await fetch(action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData
+      });
+
+      if (resp.status === 422 || resp.status === 409) {
+        // Trả về HTML partial chứa lỗi → thay vào modal
+        const html = await resp.text();
+        regContainer.innerHTML = html;
+        return;
+      }
+
+      if (resp.ok) {
+  const data = await resp.json().catch(() => ({}));
+  const modalEl = document.getElementById('registerModal');
+  bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+
+  // Hiện alert thành công
+  if (data.message) {
+    const alert = document.createElement("div");
+    alert.className = "alert alert-success alert-dismissible fade show";
+    alert.role = "alert";
+    alert.innerHTML = `
+      ${data.message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    document.body.prepend(alert);
+  }
+
+  // Nếu có show=login → mở modal login
+  if (data.show === "login") {
+    const loginModalEl = document.getElementById('loginModal');
+    setTimeout(() => {
+      bootstrap.Modal.getOrCreateInstance(loginModalEl).show();
+    }, 400); // chờ một chút để modal register ẩn đi
+  }
+
+  return;
+}
+  });
+});
+</script>
+
+</body>
+</html>

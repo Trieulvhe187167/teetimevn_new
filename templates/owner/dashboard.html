@@ -1,0 +1,197 @@
+{% extends 'owner/layout.html' %}
+
+{% block owner_content %}
+<div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between mb-4">
+  <div>
+    <h1 class="h4 fw-semibold mb-1">{{ _('Course performance overview') }}</h1>
+    <p class="text-muted mb-0">{{ _('Snapshot for %(date)s', date=today) }}</p>
+  </div>
+  <div class="mt-3 mt-md-0">
+    <a href="{{ url_for('owner.checkins', lang=lang) }}" class="btn btn-success">
+      <i class="bi bi-person-check me-2"></i>{{ _('Open check-in board') }}
+    </a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <small class="text-uppercase text-muted">{{ _('Courses managed') }}</small>
+        <div class="display-6 fw-bold">{{ stats.courses_managed }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <small class="text-uppercase text-muted">{{ _('Bookings today') }}</small>
+        <div class="display-6 fw-bold">{{ stats.bookings_today }}</div>
+        <span class="text-muted small">{{ _('Confirmed: %(count)s', count=stats.confirmed_today) }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <small class="text-uppercase text-muted">{{ _('Players today') }}</small>
+        <div class="display-6 fw-bold">{{ stats.players_today }}</div>
+        <span class="text-success small">{{ _('Fill rate %(rate)s%%', rate=stats.fill_rate) }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <small class="text-uppercase text-muted">{{ _('Pending approvals') }}</small>
+        <div class="display-6 fw-bold text-warning">{{ stats.pending }}</div>
+        <span class="text-muted small">{{ _('Require confirmation') }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <small class="text-uppercase text-muted">{{ _('Est. revenue (30 days)') }}</small>
+        <div class="display-6 fw-bold">{{ '{:,.0f}'.format(stats.estimated_revenue or 0) }}<span class="fs-6 ms-1">VND</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if courses %}
+<div class="mb-4">
+  <h2 class="h6 text-uppercase text-muted mb-3">{{ _('Managed courses') }}</h2>
+  <div class="d-flex flex-wrap gap-2">
+    {% for course in courses %}
+      <span class="badge rounded-pill text-bg-light border border-success-subtle px-3 py-2">
+        <i class="bi bi-flag me-2 text-success"></i>{{ course.name }}
+      </span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-xl-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center py-3">
+        <h3 class="h6 mb-0 fw-semibold text-uppercase">{{ _('Next tee-times') }}</h3>
+        <a href="{{ url_for('owner.booking_list', lang=lang) }}" class="btn btn-sm btn-outline-success">{{ _('View all') }}</a>
+      </div>
+      <div class="card-body">
+        {% if upcoming_bookings %}
+          <div class="list-group list-group-flush">
+            {% for booking in upcoming_bookings %}
+              <div class="list-group-item d-flex justify-content-between align-items-start gap-3">
+                <div>
+                  <div class="fw-semibold">{{ booking['course_name'] }}</div>
+                  <div class="text-muted small">
+                    <i class="bi bi-clock me-1"></i>{{ booking['play_date'] }} {{ booking['play_time'] }}
+                    · {{ _('Players') }}: {{ booking['players'] }}
+                  </div>
+                  <div class="small">
+                    <span class="badge rounded-pill bg-light text-dark border">
+                      {{ booking['status']|capitalize }}
+                    </span>
+                    {% if booking['check_in_at'] %}
+                      <span class="badge rounded-pill bg-success-subtle text-success border border-success">
+                        <i class="bi bi-person-check me-1"></i>{{ _('Checked-in') }}
+                      </span>
+                    {% endif %}
+                    {% if booking['no_show'] %}
+                      <span class="badge rounded-pill bg-warning-subtle text-warning border border-warning">
+                        {{ _('No-show') }}
+                      </span>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="text-end">
+                  <div class="fw-semibold">{{ booking['fullname'] or booking['username'] }}</div>
+                  <a class="btn btn-sm btn-outline-success mt-2"
+                     href="{{ url_for('owner.booking_detail', lang=lang, booking_id=booking['id']) }}">
+                    {{ _('Details') }}
+                  </a>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-muted mb-0">{{ _('No upcoming bookings found.') }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 py-3">
+        <h3 class="h6 mb-0 fw-semibold text-uppercase">{{ _('Latest activity') }}</h3>
+      </div>
+      <div class="card-body">
+        {% if recent_activity %}
+          <ul class="timeline">
+            {% for item in recent_activity %}
+              <li class="timeline-item">
+                <div class="timeline-point bg-success"></div>
+                <div class="timeline-content">
+                  <div class="fw-semibold">{{ item['course_name'] }}</div>
+                  <div class="small text-muted">{{ item['created_at'] }}</div>
+                  <div class="small">
+                    {{ _('Booking #%(id)s', id=item['booking_id']) }} · {{ item['play_date'] }} {{ item['play_time'] }}
+                  </div>
+                  <div class="small text-success">
+                    {{ item['old_status']|capitalize }} → {{ item['new_status']|capitalize }}
+                  </div>
+                  {% if item['notes'] %}
+                    <div class="small fst-italic text-muted">{{ item['notes'] }}</div>
+                  {% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mb-0">{{ _('No recent status changes.') }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(0, 0, 0, 0.08);
+}
+.timeline-item {
+  position: relative;
+  padding-left: 32px;
+  margin-bottom: 1.5rem;
+}
+.timeline-point {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.timeline-content {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
+}
+</style>
+{% endblock %}

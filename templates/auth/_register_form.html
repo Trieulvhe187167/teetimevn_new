@@ -1,0 +1,139 @@
+{# Partial form Register với SVG toggle password #}
+{% set form = form or {} %}
+{% set errors = errors or {} %}
+<form class="form" method="post"
+      action="{{ url_for('auth.register', lang=lang) }}"
+      id="registerForm">
+  <span class="input-span">
+    <label for="reg_username" class="label">{{ _('Username') }}</label>
+    <input type="text"
+       name="username"
+       id="reg_username"
+       class="form-control"
+        value="{{ form.username if form is defined else '' }}"
+       required minlength="3" maxlength="20"
+       pattern="^[a-zA-Z0-9_.-]+$"
+       oninput="this.value=this.value.trimStart()"
+       placeholder="{{ _('Choose a username') }}">
+ {% if errors and errors.get('username') %}
+    <div class="invalid-feedback d-block">{{ errors.get('username') }}</div>
+  {% endif %}
+  </span>
+
+  <span class="input-span position-relative">
+    <label for="reg_password" class="label">{{ _('Password') }}</label>
+   <input type="password"
+       name="password"
+       id="reg_password"
+       autocomplete="new-password"
+       class="form-control"
+       required minlength="8"
+       pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$"
+       title="{{ _('At least 8 characters with uppercase, lowercase, number, and special character') }}"
+       placeholder="{{ _('Choose a password') }}" />
+    <svg xmlns="http://www.w3.org/2000/svg"
+         fill="none"
+         viewBox="0 0 24 24"
+         stroke-width="1.5"
+         stroke="currentColor"
+         class="toggle-password-svg"
+         data-target="reg_password">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 
+               7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 
+               7.178.07.207.07.431 0 .639C20.577 16.49 
+               16.64 19.5 12 19.5c-4.638 0-8.573-3.007-
+               9.963-7.178Z" />
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+    </svg>
+  </span>
+
+  <span class="input-span position-relative">
+  <label for="reg_confirm" class="label">{{ _('Confirm Password') }}</label>
+  <input type="password"
+       name="confirm_password"
+       id="reg_confirm"
+       autocomplete="new-password"
+       class="form-control"
+       required minlength="8"
+       pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$"
+       title="{{ _('Repeat the same password') }}"
+       placeholder="{{ _('Re-enter password') }}" />
+       <svg xmlns="http://www.w3.org/2000/svg"
+         fill="none"
+         viewBox="0 0 24 24"
+         stroke-width="1.5"
+         stroke="currentColor"
+         class="toggle-password-svg"
+         data-target="reg_confirm">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 
+               7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 
+               7.178.07.207.07.431 0 .639C20.577 16.49 
+               16.64 19.5 12 19.5c-4.638 0-8.573-3.007-
+               9.963-7.178Z" />
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+    </svg>
+  </span>
+
+  <span class="input-span">
+    <label for="reg_fullname" class="label">{{ _('Full Name') }}</label>
+    <input type="text"
+           name="fullname"
+           id="reg_fullname"
+           value="{{ form.fullname if form is defined else '' }}"
+           class="form-control"
+           placeholder="{{ _('Your full name') }}" />
+  </span>
+
+  <span class="input-span">
+    <label for="reg_email" class="label">{{ _('Email') }}</label>
+    <input type="email"
+           name="email"
+           id="reg_email"
+           autocomplete="email"   
+           value="{{ form.email if form is defined else '' }}"
+           class="form-control {% if errors and errors.get('email') %}is-invalid{% endif %}"
+           required
+           placeholder="{{ _('you@example.com') }}" />
+    {% if errors and errors.get('email') %}
+  <div class="invalid-feedback d-block">{{ errors.get('email') }}</div>
+{% endif %}
+  </span>
+
+  <span class="input-span">
+    <label for="reg_phone" class="label">{{ _('Phone Number') }}</label>
+    <input type="text"
+           name="phone"
+           id="reg_phone"
+           value="{{ form.phone if form is defined else '' }}"
+           type="tel" inputmode="tel"
+           class="form-control"
+           placeholder="{{ _('Optional') }}" />
+  </span>
+
+  <span class="span">
+    {{ _("Already have an account?") }}
+    <a href="#"
+       data-bs-dismiss="modal"
+       data-bs-toggle="modal"
+       data-bs-target="#loginModal">{{ _('Log in') }}</a>
+  </span>
+
+  <input class="submit" type="submit" value="{{ _('Sign up') }}" />
+</form>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const pw  = document.getElementById("reg_password");
+  const cpw = document.getElementById("reg_confirm");
+  if (pw && cpw) {
+    const check = () => {
+      cpw.setCustomValidity(cpw.value !== pw.value ? "Passwords do not match" : "");
+    };
+    pw.addEventListener("input", check);
+    cpw.addEventListener("input", check);
+  }
+});
+</script>
