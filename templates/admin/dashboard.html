@@ -1,169 +1,251 @@
 {% extends 'base.html' %}
+{% set banner = true %}
+
+{% block site_header %}{% endblock %}
+{% block site_nav %}{% endblock %}
+{% block site_footer %}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-  <div class="row">
-    <!-- Sidebar -->
-    <nav class="col-md-2 d-md-block bg-light sidebar py-3">
-      <div class="position-sticky">
-        <h6 class="sidebar-heading text-muted px-3">{{ _('Admin Menu') }}</h6>
-        <ul class="nav flex-column">
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'admin.dashboard' %}active{% endif %}" 
-               href="{{ url_for('admin.dashboard', lang=lang) }}">
-              <i class="bi bi-speedometer2"></i> {{ _('Dashboard') }}
+{% set admin_langs = [
+  ('vi', _('Tiếng Việt'), 'vn'),
+  ('zh-CN', _('简体中文'), 'cn'),
+  ('en', _('English'), 'us'),
+  ('ko', _('한국어'), 'kr'),
+  ('ja', _('日本語'), 'jp'),
+  ('zh-TW', _('繁體中文'), 'tw')
+] %}
+{% set current_lang = admin_langs | selectattr('0', 'equalto', lang) | list | first %}
+{% if not current_lang %}
+  {% set current_lang = admin_langs[0] %}
+{% endif %}
+{% set admin_display_name = session.get('fullname') or session.get('username') %}
+
+<div class="admin-shell">
+  <div class="admin-topbar">
+    <div class="admin-brand">
+      <img src="{{ url_for('static', filename='image/Logo.png') }}" alt="TEEtimeVN" class="admin-logo">
+      <span class="admin-brand-text">TEEtimeVN Admin</span>
+    </div>
+    <div class="admin-actions">
+      <div class="dropdown admin-lang-dropdown">
+        <button class="btn btn-light dropdown-toggle d-flex align-items-center admin-lang-btn"
+                type="button" id="adminLangDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <img src="{{ url_for('static', filename='flags/' ~ current_lang[2] ~ '.svg') }}"
+               alt="{{ current_lang[1] }} flag" width="20" class="me-2">
+          <span>{{ current_lang[1] }}</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminLangDropdown">
+          {% for code,label,flag in admin_langs %}
+          <li>
+            <a class="dropdown-item d-flex align-items-center {% if code == lang %}active{% endif %}"
+               href="{{ switch_lang(code) }}">
+              <img src="{{ url_for('static', filename='flags/' ~ flag ~ '.svg') }}"
+                   alt="{{ label }} flag" width="20" class="me-2">
+              <span>{{ label }}</span>
             </a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link {% if 'booking' in request.endpoint %}active{% endif %}" 
-               href="{{ url_for('admin.booking_list', lang=lang) }}">
-              <i class="bi bi-calendar-check"></i> {{ _('Bookings') }}
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'admin.course_list' %}active{% endif %}" 
-               href="{{ url_for('admin.course_list', lang=lang) }}">
-              <i class="bi bi-flag"></i> {{ _('Courses') }}
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint.startswith('admin.user_') %}active{% endif %}" 
-               href="{{ url_for('admin.user_list', lang=lang) }}">
-              <i class="bi bi-people"></i> {{ _('Users') }}
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'admin.review_list' %}active{% endif %}" 
-               href="{{ url_for('admin.review_list', lang=lang) }}">
-              <i class="bi bi-star-fill"></i> {{ _('Reviews') }}
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'admin.price_list' %}active{% endif %}" 
-               href="{{ url_for('admin.price_list', lang=lang) }}">
-              <i class="bi bi-cash-stack"></i> {{ _('Prices') }}
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'admin.i18n_list' %}active{% endif %}" 
-               href="{{ url_for('admin.i18n_list', lang=lang) }}">
-              <i class="bi bi-translate"></i> {{ _('Translations') }}
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'admin.evaluation_list' %}active{% endif %}" 
-               href="{{ url_for('admin.evaluation_list', lang=lang) }}">
-              <i class="bi bi-graph-up"></i> {{ _('Evaluations') }}
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'admin.fx_list' %}active{% endif %}" 
-               href="{{ url_for('admin.fx_list', lang=lang) }}">
-              <i class="bi bi-currency-exchange"></i> {{ _('FX Rates') }}
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint in ['admin.faq_list','admin.faq_create','admin.faq_edit'] %}active{% endif %}"
-               href="{{ url_for('admin.faq_list', lang=lang) }}">
-              <i class="bi bi-question-circle"></i> {{ _('FAQ') }}
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="dropdown admin-user-dropdown">
+        <button class="btn btn-outline-light dropdown-toggle admin-user-btn"
+                type="button" id="adminUserDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-person-circle me-2"></i>{{ _('Welcome') }}, {{ admin_display_name or _('Admin') }}
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminUserDropdown">
+          <li>
+            <a class="dropdown-item d-flex align-items-center gap-2"
+               href="{{ url_for('auth.logout', lang=lang) }}">
+              <i class="bi bi-box-arrow-right"></i>
+              {{ _('Logout') }}
             </a>
           </li>
         </ul>
       </div>
+    </div>
+  </div>
+
+  <div class="admin-body">
+    <nav class="admin-sidebar">
+      <div class="card border-0 shadow-sm admin-menu-card">
+        <div class="card-body">
+          <h6 class="text-uppercase text-muted fw-bold small mb-3">{{ _('Admin menu') }}</h6>
+          <div class="list-group list-group-flush admin-menu">
+            <a class="list-group-item list-group-item-action {% if request.endpoint == 'admin.dashboard' %}active{% endif %}"
+               href="{{ url_for('admin.dashboard', lang=lang) }}">
+              <i class="bi bi-speedometer2 me-2"></i>{{ _('Dashboard') }}
+            </a>
+            <a class="list-group-item list-group-item-action {% if 'booking' in request.endpoint %}active{% endif %}"
+               href="{{ url_for('admin.booking_list', lang=lang) }}">
+              <i class="bi bi-calendar-check me-2"></i>{{ _('Bookings') }}
+            </a>
+            <a class="list-group-item list-group-item-action {% if request.endpoint == 'admin.course_list' %}active{% endif %}"
+               href="{{ url_for('admin.course_list', lang=lang) }}">
+              <i class="bi bi-flag me-2"></i>{{ _('Courses') }}
+            </a>
+            <a class="list-group-item list-group-item-action {% if request.endpoint.startswith('admin.user_') %}active{% endif %}"
+               href="{{ url_for('admin.user_list', lang=lang) }}">
+              <i class="bi bi-people me-2"></i>{{ _('Users') }}
+            </a>
+            <a class="list-group-item list-group-item-action {% if request.endpoint == 'admin.review_list' %}active{% endif %}"
+               href="{{ url_for('admin.review_list', lang=lang) }}">
+              <i class="bi bi-star-fill me-2"></i>{{ _('Reviews') }}
+            </a>
+            <a class="list-group-item list-group-item-action {% if request.endpoint == 'admin.owner_submission_list' %}active{% endif %}"
+               href="{{ url_for('admin.owner_submission_list', lang=lang) }}">
+              <i class="bi bi-envelope-paper me-2"></i>{{ _('Owner submissions') }}
+            </a>
+            <a class="list-group-item list-group-item-action {% if request.endpoint == 'admin.price_list' %}active{% endif %}"
+               href="{{ url_for('admin.price_list', lang=lang) }}">
+              <i class="bi bi-cash-stack me-2"></i>{{ _('Prices') }}
+            </a>
+            <a class="list-group-item list-group-item-action {% if request.endpoint == 'admin.i18n_list' %}active{% endif %}"
+               href="{{ url_for('admin.i18n_list', lang=lang) }}">
+              <i class="bi bi-translate me-2"></i>{{ _('Translations') }}
+            </a>
+            <a class="list-group-item list-group-item-action {% if request.endpoint == 'admin.evaluation_list' %}active{% endif %}"
+               href="{{ url_for('admin.evaluation_list', lang=lang) }}">
+              <i class="bi bi-graph-up me-2"></i>{{ _('Evaluations') }}
+            </a>
+            <a class="list-group-item list-group-item-action {% if request.endpoint == 'admin.fx_list' %}active{% endif %}"
+               href="{{ url_for('admin.fx_list', lang=lang) }}">
+              <i class="bi bi-currency-exchange me-2"></i>{{ _('FX rates') }}
+            </a>
+            <a class="list-group-item list-group-item-action {% if request.endpoint in ['admin.faq_list','admin.faq_create','admin.faq_edit'] %}active{% endif %}"
+               href="{{ url_for('admin.faq_list', lang=lang) }}">
+              <i class="bi bi-question-circle me-2"></i>{{ _('FAQ') }}
+            </a>
+          </div>
+        </div>
+      </div>
     </nav>
 
-    <!-- Main content -->
-    <main class="col-md-10 ms-sm-auto px-md-4 py-3">
+    <main class="admin-main">
       {% block admin_content %}{% endblock %}
     </main>
   </div>
 </div>
 
 <style>
-/* Admin Sidebar - Green Theme */
-.sidebar {
-  min-height: calc(100vh - 200px);
-  border-right: 1px solid #e0e0e0;
-  background-color: #f8f9fa;
+.admin-shell {
+  background: #f4f7f6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  overflow-x: hidden;
 }
-
-.sidebar .sidebar-heading {
-  color: #006400;
+.admin-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: clamp(1rem, 2vw, 1.5rem) clamp(1.5rem, 3vw, 3rem);
+  background: linear-gradient(135deg, #006837, #003f24);
+  color: #fff;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 63, 36, 0.3);
+  width: 100%;
+}
+.admin-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.admin-logo {
+  max-height: 40px;
+}
+.admin-brand-text {
   font-weight: 600;
-  padding: 0.75rem 1rem;
-  margin-bottom: 0.5rem;
-  border-bottom: 2px solid #009933;
+  font-size: 1.125rem;
+  letter-spacing: 0.02em;
 }
-
-/* Nav links - Mặc định màu đen */
-.sidebar .nav-link {
-  color: #000000 !important;  /* Chữ màu đen */
-  padding: 0.75rem 1rem;
-  margin: 0.25rem 0.5rem;
-  border-radius: 0.5rem;
-  transition: all 0.3s ease;
-  font-weight: 500;
-  text-decoration: none;
+.admin-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
-
-/* Hover state - vẫn giữ chữ đen với background xanh nhạt */
-.sidebar .nav-link:hover {
-  background-color: #e8f5e9;
-  color: #000000 !important;  /* Vẫn giữ chữ đen khi hover */
-  transform: translateX(5px);
-  text-decoration: none;
+.admin-lang-btn {
+  min-width: 160px;
 }
-
-/* Active nav link - Chữ trắng với nền xanh */
-.sidebar .nav-link.active {
-  background: linear-gradient(135deg, #009933, #006400);
-  color: #ffffff !important;  /* Chữ trắng khi active */
-  box-shadow: 0 4px 10px rgba(0, 153, 51, 0.3);
+.admin-user-btn {
+  border-color: rgba(255, 255, 255, 0.6);
+  color: #fff;
 }
-
-.sidebar .nav-link.active:hover {
-  background: linear-gradient(135deg, #00b33c, #007a00);
-  color: #ffffff !important;  /* Giữ chữ trắng khi hover active */
-  transform: translateX(5px);
+.admin-user-btn:hover,
+.admin-user-btn:focus {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
 }
-
-/* Icons - Mặc định màu đen */
-.sidebar .nav-link i {
-  margin-right: 0.75rem;
-  font-size: 1.1rem;
-  color: inherit;  /* Kế thừa màu từ parent */
+.admin-body {
+  flex: 1;
+  padding: clamp(1.5rem, 3vw, 2.5rem) clamp(1.5rem, 3vw, 3rem) clamp(1rem, 2vw, 2rem);
+  display: flex;
+  gap: 2rem;
 }
-
-/* Icon colors for active state - trắng */
-.sidebar .nav-link.active i {
-  color: #ffffff !important;  /* Icon trắng khi active */
+.admin-sidebar {
+  flex: 0 0 260px;
+  position: sticky;
+  top: 2rem;
+  align-self: flex-start;
 }
-
-/* Add subtle animation */
-.sidebar .nav-link {
-  position: relative;
-  overflow: hidden;
+.admin-menu-card {
+  border-radius: 1rem;
 }
-
-.sidebar .nav-link::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  width: 3px;
-  background-color: #009933;
-  transform: translateX(-100%);
-  transition: transform 0.3s ease;
+.admin-main {
+  flex: 1 1 auto;
+  width: 0;
+  min-height: calc(100vh - 96px);
 }
-
-.sidebar .nav-link:hover::before,
-.sidebar .nav-link.active::before {
-  transform: translateX(0);
+.admin-menu .list-group-item {
+  border: 0;
+  border-radius: 0.6rem;
+  margin-bottom: 0.35rem;
+  background: transparent;
+  color: #2e3d49;
+  transition: all 0.2s ease;
 }
-
-.sidebar .nav-link.active::before {
-  background-color: #ffffff;
+.admin-menu .list-group-item:hover {
+  background: rgba(0, 84, 48, 0.08);
+  color: #0b5f3c;
+}
+.admin-menu .list-group-item.active {
+  background: linear-gradient(135deg, #00a860, #006837);
+  color: #fff;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 72, 45, 0.3);
+}
+.admin-menu .list-group-item i {
+  font-size: 1rem;
+}
+@media (max-width: 767.98px) {
+  .admin-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .admin-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+  .admin-actions .dropdown,
+  .admin-user-btn {
+    width: 100%;
+  }
+  .admin-user-btn {
+    text-align: center;
+  }
+  .admin-body {
+    padding: 1.5rem 1rem 2rem;
+    flex-direction: column;
+  }
+  .admin-sidebar {
+    position: static;
+    width: 100%;
+  }
+  .admin-main {
+    width: 100%;
+  }
 }
 </style>
 {% endblock %}
