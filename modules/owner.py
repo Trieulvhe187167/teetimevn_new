@@ -563,7 +563,6 @@ def create_owner_bp():
         g.db.commit()
         flash(_("Discount updated."), "success")
         return redirect(url_for("owner.discount_list", lang=lang))
-
     @bp.route("/bookings/")
     def booking_list(lang):
         owner_id = session.get("user_id")
