@@ -1,0 +1,77 @@
+{% extends 'owner/layout.html' %}
+
+{% block owner_content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="{{ url_for('owner.dashboard', lang=lang) }}">{{ _('Dashboard') }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ _('Discounts') }}</li>
+      </ol>
+    </nav>
+    <h2 class="h4 fw-bold mb-0">{{ _('Manage course discounts') }}</h2>
+    <p class="text-muted mb-0">{{ _('Update the promotional discount note for each pricing tier of your courses.') }}</p>
+  </div>
+</div>
+
+{% if not prices %}
+  <div class="alert alert-info">{{ _('No pricing tiers available for your courses yet.') }}</div>
+{% else %}
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th>{{ _('Course') }}</th>
+              <th>{{ _('Tier') }}</th>
+              <th class="text-end">{{ _('Rack price') }}</th>
+              <th style="width: 220px;">{{ _('Discount note') }}</th>
+              <th class="text-end">{{ _('Discounted price') }}</th>
+              <th class="text-end">{{ _('Actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for price in prices %}
+            {% set discount_text = (price['discount_note'] or '0%').replace('%','').replace('-','') %}
+            {% set rate = (discount_text|float) / 100 if discount_text else 0 %}
+            {% set discounted = (price['rack_price_vnd'] * (1 - rate)) | round(0, 'floor') %}
+            <tr data-rack="{{ price['rack_price_vnd'] }}">
+              <td class="fw-semibold">{{ price['course_name'] }}</td>
+              <td class="text-capitalize">{{ price['tier_type'] }}</td>
+              <td class="text-end">{{ "{:,.0f}".format(price['rack_price_vnd']) }} đ</td>
+              <td>
+                <form class="d-flex align-items-center gap-2" method="post" action="{{ url_for('owner.discount_update', lang=lang, price_id=price['id']) }}">
+                  <input type="text" name="discount_note" class="form-control form-control-sm discount-note" value="{{ price['discount_note'] or '' }}" aria-label="{{ _('Discount note') }}">
+                  <button type="submit" class="btn btn-sm btn-primary">{{ _('Save') }}</button>
+                </form>
+              </td>
+              <td class="text-end discount-price">{{ "{:,.0f}".format(discounted) }} đ</td>
+              <td class="text-end text-muted small">{{ _('Last updated') }}: {{ price['updated_at'] or '' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+<script>
+  document.querySelectorAll('tr[data-rack]').forEach(row => {
+    const rack = parseFloat(row.dataset.rack || '0');
+    const input = row.querySelector('.discount-note');
+    const target = row.querySelector('.discount-price');
+
+    const updatePrice = () => {
+      const text = (input.value || '0%').replace('%', '').replace('-', '');
+      const rate = text ? Math.min(Math.max(parseFloat(text) / 100, 0), 1) : 0;
+      const discounted = Math.floor(rack - rack * rate);
+      target.textContent = discounted.toLocaleString('en-US') + ' đ';
+    };
+
+    input.addEventListener('input', updatePrice);
+    updatePrice();
+  });
+</script>
+{% endblock %}

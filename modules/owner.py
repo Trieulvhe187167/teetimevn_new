@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, date
-from typing import List, Sequence, Tuple, Optional
+from pathlib import Path
+from typing import List, Sequence, Tuple, Optional, Dict, Any
+from uuid import uuid4
+import json
+import mimetypes
+import sqlite3
+from types import SimpleNamespace
 
 from flask import (
     Blueprint,
@@ -15,6 +21,7 @@ from flask import (
     g,
     session,
     current_app,
+    abort,
 )
 from flask_babel import _
 
@@ -27,6 +34,8 @@ from modules.booking import (
     DEFAULT_SLOT_CAPACITY,
 )
 from modules.owner_support import ensure_owner_schema
+
+ALLOWED_IMAGE_MIMETYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
 
 def _fetch_owner_courses(lang: str, owner_id: int) -> List[dict]:
@@ -47,6 +56,19 @@ def _fetch_owner_courses(lang: str, owner_id: int) -> List[dict]:
 
 def _collect_course_ids(courses: Sequence[dict]) -> List[int]:
     return [int(course["id"]) for course in courses]
+
+
+def _fetch_owner_price(owner_id: int, price_id: int) -> Optional[sqlite3.Row]:
+    return g.db.execute(
+        """
+        SELECT cp.*
+        FROM course_price cp
+        JOIN course_owners co ON cp.course_id = co.course_id
+        WHERE cp.id = ? AND co.owner_id = ?
+        LIMIT 1
+        """,
+        (price_id, owner_id),
+    ).fetchone()
 
 
 def _build_in_clause(ids: Sequence[int]) -> Tuple[str, List[int]]:
@@ -76,6 +98,119 @@ def _load_owner_booking(lang: str, owner_id: int, booking_id: int):
         (lang, booking_id, *params),
     ).fetchone()
     return row
+
+
+def _get_owner_course_or_404(lang: str, owner_id: int, course_id: int) -> Dict[str, Any]:
+    course = g.db.execute(
+        """
+        SELECT gc.*, gci.name AS course_name
+        FROM course_owners co
+        JOIN golf_course gc ON co.course_id = gc.id
+        LEFT JOIN golf_course_i18n gci
+               ON gc.id = gci.course_id AND gci.lang = ?
+        WHERE co.owner_id = ? AND gc.id = ?
+        """,
+        (lang, owner_id, course_id),
+    ).fetchone()
+    if not course:
+        abort(404)
+    return dict(course)
+
+
+def _load_course_i18n(course_id: int) -> Dict[str, Dict[str, Any]]:
+    rows = g.db.execute(
+        "SELECT lang, name, overview, address FROM golf_course_i18n WHERE course_id = ?",
+        (course_id,),
+    ).fetchall()
+    return {row["lang"]: dict(row) for row in rows}
+
+
+def _pending_upload_dir(course_id: int) -> Path:
+    base = Path(current_app.static_folder) / "uploads" / "courses" / str(course_id) / "pending"
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
+def _live_upload_dir(course_id: int) -> Path:
+    base = Path(current_app.static_folder) / "uploads" / "courses" / str(course_id) / "live"
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
+def _save_pending_images(course_id: int, files) -> List[str]:
+    saved: List[str] = []
+    storage_dir = _pending_upload_dir(course_id)
+    for file in files:
+        if not file or not getattr(file, "filename", None):
+            continue
+        mime, _ = mimetypes.guess_type(file.filename)
+        if mime not in ALLOWED_IMAGE_MIMETYPES:
+            continue
+        suffix = Path(file.filename).suffix.lower() or ".jpg"
+        filename = f"{uuid4().hex}{suffix}"
+        path = storage_dir / filename
+        file.save(path)
+        relative = str(Path("uploads") / "courses" / str(course_id) / "pending" / filename)
+        saved.append(relative.replace("\\", "/"))
+    return saved
+
+
+def _load_latest_request(course_id: int) -> Optional[sqlite3.Row]:
+    return g.db.execute(
+        """
+        SELECT *
+        FROM course_update_requests
+        WHERE course_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (course_id,),
+    ).fetchone()
+
+
+def _upsert_course_update_request(
+    course_id: int,
+    owner_id: int,
+    payload: Dict[str, Any],
+) -> None:
+    existing = g.db.execute(
+        """
+        SELECT id FROM course_update_requests
+        WHERE course_id = ? AND status = 'pending' AND owner_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (course_id, owner_id),
+    ).fetchone()
+    payload_json = json.dumps(payload)
+    if existing:
+        g.db.execute(
+            """
+            UPDATE course_update_requests
+            SET payload = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (payload_json, existing["id"]),
+        )
+    else:
+        g.db.execute(
+            """
+            INSERT INTO course_update_requests (course_id, owner_id, payload)
+            VALUES (?, ?, ?)
+            """,
+            (course_id, owner_id, payload_json),
+        )
+    g.db.commit()
+
+
+def _dict_to_namespace(data: Dict[str, Any]) -> SimpleNamespace:
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, dict):
+            result[key] = _dict_to_namespace(value)
+        else:
+            result[key] = value
+    return SimpleNamespace(**result)
 
 
 def create_owner_bp():
@@ -234,6 +369,200 @@ def create_owner_bp():
             recent_activity=recent_activity,
             today=today_str,
         )
+
+    @bp.route("/courses/settings")
+    def course_settings_index(lang):
+        owner_id = session.get("user_id")
+        courses = _fetch_owner_courses(lang, owner_id)
+        latest_requests: Dict[int, Dict[str, Any]] = {}
+
+        if courses:
+            course_ids = _collect_course_ids(courses)
+            placeholders, params = _build_in_clause(course_ids)
+            rows = g.db.execute(
+                f"""
+                SELECT *
+                FROM course_update_requests
+                WHERE owner_id = ?
+                  AND course_id IN ({placeholders})
+                ORDER BY course_id, created_at DESC
+                """,
+                (owner_id, *params),
+            ).fetchall()
+            for row in rows:
+                cid = row["course_id"]
+                if cid not in latest_requests:
+                    latest_requests[cid] = dict(row)
+
+        return render_template(
+            "owner/course_settings_list.html",
+            lang=lang,
+            courses=courses,
+            latest_requests=latest_requests,
+        )
+
+    @bp.route("/courses/<int:course_id>/settings", methods=["GET", "POST"])
+    def course_settings_detail(lang, course_id):
+        owner_id = session.get("user_id")
+        course = _get_owner_course_or_404(lang, owner_id, course_id)
+        course_i18n_map = _load_course_i18n(course_id)
+        pending_request_row = g.db.execute(
+            """
+            SELECT *
+            FROM course_update_requests
+            WHERE course_id = ? AND owner_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (course_id, owner_id),
+        ).fetchone()
+
+        existing_payload: Dict[str, Any] = {}
+        if pending_request_row:
+            try:
+                existing_payload = json.loads(pending_request_row["payload"] or "{}")
+            except json.JSONDecodeError:
+                existing_payload = {}
+
+        if request.method == "POST":
+            amenities_input = request.form.get("amenities") or ""
+            amenities = [
+                item.strip()
+                for item in amenities_input.replace("\r", "").split("\n")
+                if item.strip()
+            ]
+
+            images = list(existing_payload.get("images", [])) if existing_payload else []
+            uploaded = _save_pending_images(course_id, request.files.getlist("images"))
+            if uploaded:
+                images.extend(uploaded)
+                images = list(dict.fromkeys(images))
+
+            payload = {
+                "description": request.form.get("description") or "",
+                "address": request.form.get("address") or "",
+                "amenities": amenities,
+                "images": images,
+                "i18n": {
+                    lang: {
+                        "title": request.form.get("title") or "",
+                        "description": request.form.get("description") or "",
+                        "address": request.form.get("address") or "",
+                    }
+                },
+                "submitted_lang": lang,
+                "submitted_at": datetime.utcnow().isoformat(),
+            }
+
+            _upsert_course_update_request(course_id, owner_id, payload)
+            flash(_("Update request submitted. Our admin team will review it shortly."), "success")
+            return redirect(
+                url_for("owner.course_settings_detail", lang=lang, course_id=course_id)
+            )
+
+        pending_payload_ns = None
+        if existing_payload:
+            pending_payload_ns = _dict_to_namespace(existing_payload)
+
+        defaults: Dict[str, Any] = {
+            "title": (course_i18n_map.get(lang) or {}).get("name", ""),
+            "address": (course_i18n_map.get(lang) or {}).get("address", ""),
+            "description": (course_i18n_map.get(lang) or {}).get("overview", ""),
+            "amenities": "",
+        }
+
+        if existing_payload:
+            i18n_lang = existing_payload.get("i18n", {}).get(lang, {})
+            defaults.update(
+                {
+                    "title": i18n_lang.get("title") or existing_payload.get("title") or defaults["title"],
+                    "address": existing_payload.get("address") or i18n_lang.get("address") or defaults["address"],
+                    "description": existing_payload.get("description")
+                    or i18n_lang.get("description")
+                    or defaults["description"],
+                    "amenities": "\n".join(existing_payload.get("amenities", []))
+                    if existing_payload.get("amenities")
+                    else defaults["amenities"],
+                }
+            )
+
+        return render_template(
+            "owner/course_settings_form.html",
+            lang=lang,
+            course=course,
+            course_i18n=course_i18n_map.get(lang) or {},
+            pending_request=dict(pending_request_row) if pending_request_row else None,
+            pending_payload=pending_payload_ns,
+            form_data=_dict_to_namespace(defaults),
+            owner_mode=True,
+            show_slug=False,
+        )
+
+    @bp.route("/discounts/", methods=["GET"])
+    def discount_list(lang):
+        owner_id = session.get("user_id")
+        courses = _fetch_owner_courses(lang, owner_id)
+        if not courses:
+            flash(_("No courses have been assigned to your account yet."), "info")
+            return render_template(
+                "owner/discount_list.html",
+                lang=lang,
+                courses=[],
+                prices=[],
+            )
+
+        course_ids = _collect_course_ids(courses)
+        placeholders, params = _build_in_clause(course_ids)
+        prices = g.db.execute(
+            f"""
+            SELECT cp.*, gci.name AS course_name
+            FROM course_price cp
+            JOIN golf_course_i18n gci
+                 ON cp.course_id = gci.course_id AND gci.lang = ?
+            WHERE cp.course_id IN ({placeholders})
+            ORDER BY cp.course_id, cp.tier_type
+            """,
+            (lang, *params),
+        ).fetchall()
+
+        return render_template(
+            "owner/discount_list.html",
+            lang=lang,
+            courses=courses,
+            prices=prices,
+        )
+
+    @bp.route("/discounts/<int:price_id>/update", methods=["POST"])
+    def discount_update(lang, price_id):
+        owner_id = session.get("user_id")
+        price_row = _fetch_owner_price(owner_id, price_id)
+        if not price_row:
+            abort(404)
+
+        discount_note_raw = (request.form.get("discount_note") or "0%").strip()
+        rack_price = float(price_row["rack_price_vnd"] or 0)
+
+        try:
+            discount_text = discount_note_raw.replace("%", "").replace("-", "")
+            discount_rate = float(discount_text) / 100 if discount_text else 0
+        except ValueError:
+            flash(_("Invalid discount format. Please enter a number like 10% or 7.5%."), "warning")
+            return redirect(url_for("owner.discount_list", lang=lang))
+
+        discount_rate = max(0.0, min(discount_rate, 1.0))
+        discount_price = int(rack_price - rack_price * discount_rate)
+
+        g.db.execute(
+            """
+            UPDATE course_price
+            SET discount_note = ?, discount_price_vnd = ?
+            WHERE id = ?
+            """,
+            (discount_note_raw, discount_price, price_id),
+        )
+        g.db.commit()
+        flash(_("Discount updated."), "success")
+        return redirect(url_for("owner.discount_list", lang=lang))
 
     @bp.route("/bookings/")
     def booking_list(lang):
