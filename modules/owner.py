@@ -58,6 +58,19 @@ def _collect_course_ids(courses: Sequence[dict]) -> List[int]:
     return [int(course["id"]) for course in courses]
 
 
+def _fetch_owner_price(owner_id: int, price_id: int) -> Optional[sqlite3.Row]:
+    return g.db.execute(
+        """
+        SELECT cp.*
+        FROM course_price cp
+        JOIN course_owners co ON cp.course_id = co.course_id
+        WHERE cp.id = ? AND co.owner_id = ?
+        LIMIT 1
+        """,
+        (price_id, owner_id),
+    ).fetchone()
+
+
 def _build_in_clause(ids: Sequence[int]) -> Tuple[str, List[int]]:
     placeholders = ", ".join("?" for _ in ids)
     return placeholders, list(ids)
@@ -485,6 +498,71 @@ def create_owner_bp():
             show_slug=False,
         )
 
+    @bp.route("/discounts/", methods=["GET"])
+    def discount_list(lang):
+        owner_id = session.get("user_id")
+        courses = _fetch_owner_courses(lang, owner_id)
+        if not courses:
+            flash(_("No courses have been assigned to your account yet."), "info")
+            return render_template(
+                "owner/discount_list.html",
+                lang=lang,
+                courses=[],
+                prices=[],
+            )
+
+        course_ids = _collect_course_ids(courses)
+        placeholders, params = _build_in_clause(course_ids)
+        prices = g.db.execute(
+            f"""
+            SELECT cp.*, gci.name AS course_name
+            FROM course_price cp
+            JOIN golf_course_i18n gci
+                 ON cp.course_id = gci.course_id AND gci.lang = ?
+            WHERE cp.course_id IN ({placeholders})
+            ORDER BY cp.course_id, cp.tier_type
+            """,
+            (lang, *params),
+        ).fetchall()
+
+        return render_template(
+            "owner/discount_list.html",
+            lang=lang,
+            courses=courses,
+            prices=prices,
+        )
+
+    @bp.route("/discounts/<int:price_id>/update", methods=["POST"])
+    def discount_update(lang, price_id):
+        owner_id = session.get("user_id")
+        price_row = _fetch_owner_price(owner_id, price_id)
+        if not price_row:
+            abort(404)
+
+        discount_note_raw = (request.form.get("discount_note") or "0%").strip()
+        rack_price = float(price_row["rack_price_vnd"] or 0)
+
+        try:
+            discount_text = discount_note_raw.replace("%", "").replace("-", "")
+            discount_rate = float(discount_text) / 100 if discount_text else 0
+        except ValueError:
+            flash(_("Invalid discount format. Please enter a number like 10% or 7.5%."), "warning")
+            return redirect(url_for("owner.discount_list", lang=lang))
+
+        discount_rate = max(0.0, min(discount_rate, 1.0))
+        discount_price = int(rack_price - rack_price * discount_rate)
+
+        g.db.execute(
+            """
+            UPDATE course_price
+            SET discount_note = ?, discount_price_vnd = ?
+            WHERE id = ?
+            """,
+            (discount_note_raw, discount_price, price_id),
+        )
+        g.db.commit()
+        flash(_("Discount updated."), "success")
+        return redirect(url_for("owner.discount_list", lang=lang))
     @bp.route("/bookings/")
     def booking_list(lang):
         owner_id = session.get("user_id")

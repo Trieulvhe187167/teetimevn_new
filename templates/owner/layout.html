@@ -83,6 +83,10 @@
                class="list-group-item list-group-item-action {% if request.endpoint in ['owner.booking_list','owner.booking_detail'] %}active{% endif %}">
               <i class="bi bi-list-check me-2"></i>{{ _('Bookings') }}
             </a>
+            <a href="{{ url_for('owner.discount_list', lang=lang) }}"
+               class="list-group-item list-group-item-action {% if request.endpoint == 'owner.discount_list' %}active{% endif %}">
+              <i class="bi bi-percent me-2"></i>{{ _('Discounts') }}
+            </a>
             <a href="{{ url_for('owner.checkins', lang=lang) }}"
                class="list-group-item list-group-item-action {% if request.endpoint == 'owner.checkins' %}active{% endif %}">
               <i class="bi bi-person-check me-2"></i>{{ _('Check-in Board') }}
