@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Submission review') }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="mb-4">
+    <a href="{{ url_for('admin.owner_submission_list', lang=lang, status=request.args.get('status', 'pending')) }}" class="text-decoration-none small text-muted">
+      <i class="bi bi-arrow-left-circle me-2"></i>{{ _('Back to submissions') }}
+    </a>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+      <div>
+        <h1 class="h4 mb-1">{{ _('Submission from %(owner)s', owner=submission['owner_id']) }}</h1>
+        <p class="text-muted mb-0">{{ _('Course: %(course)s', course=submission['course_name'] or submission['slug']) }}</p>
+      </div>
+      <div>
+        {% if submission['status'] == 'pending' %}
+          <span class="badge bg-warning text-dark">{{ _('Pending') }}</span>
+        {% elif submission['status'] == 'approved' %}
+          <span class="badge bg-success">{{ _('Approved') }}</span>
+        {% else %}
+          <span class="badge bg-danger">{{ _('Rejected') }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card-footer bg-white small text-muted">
+      {{ _('Submitted at: %(created)s', created=submission['created_at']) }} ·
+      {{ _('Last updated: %(updated)s', updated=submission['updated_at']) }}
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white">
+          <h2 class="h6 mb-0">{{ _('Current live content') }}</h2>
+        </div>
+        <div class="card-body">
+          {% if live_snapshot %}
+          <dl class="row mb-0">
+            <dt class="col-sm-4">{{ _('Name') }}</dt>
+            <dd class="col-sm-8">{{ live_snapshot['name'] or live_snapshot['slug'] }}</dd>
+            <dt class="col-sm-4">{{ _('Address') }}</dt>
+            <dd class="col-sm-8">{{ live_snapshot['address'] or _('Not provided') }}</dd>
+            <dt class="col-sm-4">{{ _('Description') }}</dt>
+            <dd class="col-sm-8">{{ live_snapshot['overview'] or _('Not provided') }}</dd>
+          </dl>
+          {% else %}
+            <p class="text-muted mb-0">{{ _('No live translation found for this language.') }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white">
+          <h2 class="h6 mb-0">{{ _('Proposed changes') }}</h2>
+        </div>
+        <div class="card-body">
+          {% set proposed = payload.get('i18n', {}).get(lang, {}) %}
+          <dl class="row mb-0">
+            <dt class="col-sm-4">{{ _('Name') }}</dt>
+            <dd class="col-sm-8">{{ proposed.get('title') or _('Not provided') }}</dd>
+            <dt class="col-sm-4">{{ _('Address') }}</dt>
+            <dd class="col-sm-8">{{ payload.get('address') or proposed.get('address') or _('Not provided') }}</dd>
+            <dt class="col-sm-4">{{ _('Description') }}</dt>
+            <dd class="col-sm-8">{{ payload.get('description') or proposed.get('description') or _('Not provided') }}</dd>
+            <dt class="col-sm-4">{{ _('Amenities') }}</dt>
+            <dd class="col-sm-8">
+              {% if payload.get('amenities') %}
+                <ul class="mb-0">
+                  {% for amenity in payload.get('amenities') %}
+                    <li>{{ amenity }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                {{ _('Not provided') }}
+              {% endif %}
+            </dd>
+            <dt class="col-sm-4">{{ _('Images') }}</dt>
+            <dd class="col-sm-8">
+              {% set gallery = payload.get('images_live') or payload.get('images') %}
+              {% if gallery %}
+                <div class="d-flex flex-wrap gap-2">
+                  {% for image in gallery %}
+                    <img src="{{ url_for('static', filename=image) }}" alt="Pending image" class="rounded" style="width:120px;height:80px;object-fit:cover;">
+                  {% endfor %}
+                </div>
+              {% else %}
+                {{ _('No new images provided') }}
+              {% endif %}
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if submission['status'] == 'pending' %}
+  <div class="card border-0 shadow-sm mt-4">
+    <div class="card-body">
+      <form method="post" class="row g-3" action="{{ url_for('admin.owner_submission_approve', lang=lang, request_id=submission['id']) }}">
+        <div class="col-md-8">
+          <label class="form-label">{{ _('Reviewer note (optional)') }}</label>
+          <textarea class="form-control" name="review_note" rows="3" placeholder="{{ _('Notes will be sent to the owner.') }}"></textarea>
+        </div>
+        <div class="col-md-4 d-flex align-items-end justify-content-end gap-2">
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-check-circle me-1"></i>{{ _('Approve') }}
+          </button>
+        </div>
+      </form>
+      <hr class="my-4">
+      <form method="post" class="row g-3" action="{{ url_for('admin.owner_submission_reject', lang=lang, request_id=submission['id']) }}">
+        <div class="col-md-8">
+          <label class="form-label">{{ _('Reason for rejection') }}</label>
+          <textarea class="form-control" name="review_note" rows="2" required></textarea>
+        </div>
+        <div class="col-md-4 d-flex align-items-end justify-content-end gap-2">
+          <button type="submit" class="btn btn-outline-danger" onclick="return confirm('{{ _('Are you sure you want to reject this submission?') }}');">
+            <i class="bi bi-x-circle me-1"></i>{{ _('Reject') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% elif submission['review_note'] %}
+    <div class="alert alert-info mt-4">
+      <strong>{{ _('Reviewer note:') }}</strong> {{ submission['review_note'] }}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

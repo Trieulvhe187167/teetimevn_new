@@ -1,0 +1,87 @@
+{% extends 'owner/layout.html' %}
+
+{% block owner_content %}
+<div class="mb-4">
+  <a href="{{ url_for('owner.course_settings_index', lang=lang) }}" class="text-decoration-none small text-muted">
+    <i class="bi bi-arrow-left-circle me-2"></i>{{ _('Back to course list') }}
+  </a>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+      <div>
+        <h1 class="h4 fw-semibold mb-1">{{ course.course_name or _('Course settings') }}</h1>
+        <p class="text-muted mb-0">{{ _('Submit updates for the course. Changes go live after admin approval.') }}</p>
+      </div>
+      {% if pending_request %}
+        <span class="badge {% if pending_request['status'] == 'pending' %}bg-warning text-dark{% elif pending_request['status'] == 'rejected' %}bg-danger{% else %}bg-success{% endif %}">
+          {{ pending_request['status']|capitalize }}
+        </span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="card border-0 shadow-sm">
+  <div class="card-body">
+    {% include 'partials/course_form_fields.html' with context %}
+  </div>
+  <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+    <div class="text-muted small">
+      {{ _('All submissions are reviewed by our admin team before publishing.') }}
+    </div>
+    <button type="submit" class="btn btn-success">
+      <i class="bi bi-send-check me-2"></i>{{ _('Submit update request') }}
+    </button>
+  </div>
+</form>
+
+{% if pending_payload %}
+<div class="card border-0 shadow-sm mt-4">
+  <div class="card-header bg-white">
+    <h2 class="h6 mb-0">{{ _('Latest submission preview') }}</h2>
+  </div>
+  <div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">{{ _('Proposed name') }}</dt>
+      <dd class="col-sm-9">{{ pending_payload.i18n.get(lang, {}).get('title') or _('Not provided') }}</dd>
+      <dt class="col-sm-3">{{ _('Proposed address') }}</dt>
+      <dd class="col-sm-9">{{ pending_payload.address or pending_payload.i18n.get(lang, {}).get('address') or _('Not provided') }}</dd>
+      <dt class="col-sm-3">{{ _('Proposed description') }}</dt>
+      <dd class="col-sm-9">{{ pending_payload.description or _('Not provided') }}</dd>
+      <dt class="col-sm-3">{{ _('Proposed amenities') }}</dt>
+      <dd class="col-sm-9">
+        {% if pending_payload.amenities %}
+          <ul class="mb-0">
+            {% for amenity in pending_payload.amenities %}
+              <li>{{ amenity }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          {{ _('Not provided') }}
+        {% endif %}
+      </dd>
+      <dt class="col-sm-3">{{ _('Proposed images') }}</dt>
+      <dd class="col-sm-9">
+        {% if pending_payload.images %}
+          <div class="d-flex flex-wrap gap-2">
+            {% for image in pending_payload.images %}
+              <img src="{{ url_for('static', filename=image) }}" alt="Pending image" class="rounded" style="width:120px;height:80px;object-fit:cover;">
+            {% endfor %}
+          </div>
+        {% else %}
+          {{ _('Not provided') }}
+        {% endif %}
+      </dd>
+    </dl>
+  </div>
+  {% if pending_request and pending_request['review_note'] %}
+  <div class="card-footer bg-white">
+    <strong class="d-block mb-1">{{ _('Reviewer note') }}</strong>
+    <p class="mb-0 text-muted">{{ pending_request['review_note'] }}</p>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
